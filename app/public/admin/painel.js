@@ -95,12 +95,90 @@
     $('#telaPainel').hidden = false;
     desenhar();
     verZap();
+    verMetricas();
     if (window.EditorConteudo) {
       EditorConteudo.iniciar(api).catch(function (e) {
         $('#editorConteudo').innerHTML =
           '<p class="erro-slot">Não consegui carregar o conteúdo do site: ' + escapar(e.message) + '</p>';
       });
     }
+  }
+
+  /* ---------------------------------------------------- indicadores */
+
+  async function verMetricas() {
+    var caixa = $('#metricas');
+    var dias = Number(($('#metricasPeriodo') || {}).value || 30);
+    try {
+      estado.metricas = await api('/metricas?dias=' + dias);
+    } catch (e) {
+      caixa.innerHTML = '<p class="erro-slot">' + escapar(e.message) + '</p>';
+      return;
+    }
+    desenharMetricas();
+  }
+
+  function desenharMetricas() {
+    var m = estado.metricas;
+    var t = m.total;
+
+    // agendamentos por local, somando a série toda
+    var porLocal = {};
+    m.dias.forEach(function (d) {
+      Object.keys(d.porLocal || {}).forEach(function (id) {
+        porLocal[id] = (porLocal[id] || 0) + d.porLocal[id];
+      });
+    });
+
+    $('#metricas').innerHTML =
+      '<div class="numeros">' +
+        cartao(t.unicos, 'pessoas', 'visitantes distintos') +
+        cartao(t.visitas, 'visitas', 'páginas abertas') +
+        cartao(t.interessados, 'viram horários', 'chegaram a abrir a agenda') +
+        cartao(t.agendamentos, 'agendaram', 'pedidos enviados') +
+        cartao(t.conversao + '%', 'conversão', 'de cada 100 pessoas') +
+      '</div>' +
+      barras(m.dias) +
+      (Object.keys(porLocal).length
+        ? '<div class="por-local">' + Object.keys(porLocal).map(function (id) {
+            return '<span><b>' + porLocal[id] + '</b> ' + escapar(m.nomes[id] || id) + '</span>';
+          }).join('') + '</div>'
+        : '');
+  }
+
+  function cartao(valor, rotulo, ajuda) {
+    return '<div class="numero" title="' + escapar(ajuda) + '">' +
+      '<b>' + escapar(String(valor)) + '</b>' +
+      '<span>' + escapar(rotulo) + '</span>' +
+    '</div>';
+  }
+
+  /**
+   * Barras em CSS puro: uma coluna por dia, altura proporcional às visitas,
+   * com a fatia de quem agendou destacada. Sem biblioteca de gráfico — para
+   * cinco números por dia não compensa carregar uma.
+   */
+  function barras(dias) {
+    var teto = dias.reduce(function (a, d) { return Math.max(a, d.unicos); }, 0) || 1;
+    return '<div class="barras" role="img" aria-label="visitantes e agendamentos por dia">' +
+      dias.map(function (d) {
+        var alturaPessoas = Math.round((d.unicos / teto) * 100);
+        var alturaAgenda = d.unicos ? Math.round((d.agendamentos / teto) * 100) : 0;
+        var dia = d.dia.slice(8) + '/' + d.dia.slice(5, 7);
+        return '<div class="barra" title="' + dia + ': ' + d.unicos + ' pessoa(s), ' +
+            d.agendamentos + ' agendamento(s)">' +
+          '<div class="col">' +
+            '<div class="parte pessoas" style="height:' + alturaPessoas + '%"></div>' +
+            '<div class="parte agenda" style="height:' + alturaAgenda + '%"></div>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+      '<div class="legenda"><span class="chave pessoas"></span>pessoas' +
+        '<span class="chave agenda"></span>agendaram' +
+        '<span class="periodo-txt">' + escapar(dias[0].dia.slice(8) + '/' + dias[0].dia.slice(5, 7)) +
+        ' → ' + escapar(dias[dias.length - 1].dia.slice(8) + '/' + dias[dias.length - 1].dia.slice(5, 7)) +
+        '</span></div>' +
+    '</div>';
   }
 
   /* ------------------------------------------------------- WhatsApp */
@@ -515,6 +593,7 @@
     if (e.key === 'Escape' && !$('#painelLocal').hidden) fecharGaveta();
   });
   $('#novoLocal').addEventListener('click', function () { abrirGaveta(null); });
+  $('#metricasPeriodo').addEventListener('change', verMetricas);
 
   function lerFormLocal() {
     return {

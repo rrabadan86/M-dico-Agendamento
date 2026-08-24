@@ -272,3 +272,62 @@
 .pendentes h3{ font-size:1.02rem; }
 .pendentes ul{ margin:0; padding-left:20px; display:grid; gap:6px; font-size:.9rem; color:var(--ink); }
 .pendentes .acoes{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+/* ---------- indicadores ---------- */
+.periodo{
+  font: inherit; font-size:.88rem; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong);
+  border-radius:999px; padding:8px 14px; cursor:pointer;
+}
+.numeros{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr));
+  gap:1px; background:var(--line); border:1px solid var(--line);
+  border-radius:var(--radius-sm); overflow:hidden; margin-bottom:22px;
+}
+.numero{ background:var(--surface); padding:16px 18px; }
+.numero b{
+  display:block; font-family:"Fraunces",Georgia,serif; font-weight:500;
+  font-size:1.7rem; line-height:1.1; letter-spacing:-.01em;
+}
+.numero span{ display:block; margin-top:4px; font-size:.78rem; color:var(--ink-3); }
+
+/* No celular cabem dois por linha. Com número ímpar de cartões, o último
+   ocupa a linha inteira — senão sobra meia célula vazia, que aparece como
+   um retângulo cinza (a cor que faz as divisórias). */
+@media (max-width:640px){
+  .numeros{ grid-template-columns:repeat(2,1fr); }
+  .numero:last-child:nth-child(odd){ grid-column:1 / -1; }
+}
+
+/* uma coluna por dia; a fatia de quem agendou fica na base, sobre a de visitantes */
+.barras{
+  display:flex; align-items:flex-end; gap:3px;
+  height:132px; padding:0 2px; position:relative;
+  border-bottom:1px solid var(--line);
+}
+.barra{ flex:1 1 0; min-width:0; height:100%; display:flex; align-items:flex-end; }
+.barra .col{ position:relative; width:100%; height:100%; }
+.barra .parte{
+  position:absolute; left:0; right:0; bottom:0;
+  border-radius:3px 3px 0 0; min-height:2px;
+}
+.barra .parte.pessoas{ background:var(--brand-soft); }
+.barra .parte.agenda{ background:var(--brand); }
+.barra:hover .parte.pessoas{ background:var(--surface-3); }
+
+.barras .legenda{
+  position:absolute; left:0; right:0; bottom:-30px;
+  display:flex; align-items:center; gap:7px;
+  font-size:.76rem; color:var(--ink-3);
+}
+.legenda .chave{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+.legenda .chave.pessoas{ background:var(--brand-soft); }
+.legenda .chave.agenda{ background:var(--brand); margin-left:12px; }
+.legenda .periodo-txt{ margin-left:auto; font-family:"IBM Plex Mono",ui-monospace,monospace; }
+
+.por-local{
+  display:flex; flex-wrap:wrap; gap:18px;
+  margin-top:46px; padding-top:16px; border-top:1px solid var(--line);
+  font-size:.88rem; color:var(--ink-2);
+}
+.por-local b{ color:var(--ink); font-weight:600; }

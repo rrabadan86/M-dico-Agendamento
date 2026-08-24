@@ -397,3 +397,31 @@ test('WhatsApp do local em formato errado é recusado', async () => {
   assert.equal(r.status, 400);
   assert.ok(r.corpo.erros.whatsappRecepcao);
 });
+
+test('os indicadores exigem sessão', async () => {
+  const { status } = await navegador()('/admin/api/metricas');
+  assert.equal(status, 401);
+});
+
+test('uma visita e um agendamento aparecem nos indicadores', async () => {
+  const nav = await entrar(navegador());
+
+  // uma visita de verdade, pela página do paciente
+  await fetch(`${base}/`, { headers: { 'user-agent': 'Mozilla/5.0 (iPhone)' } });
+
+  const { status, corpo } = await nav('/admin/api/metricas?dias=7');
+  assert.equal(status, 200);
+  assert.equal(corpo.dias.length, 7);
+  assert.ok(corpo.hoje.visitas >= 1, 'a visita foi contada');
+  assert.ok(corpo.nomes, 'os nomes dos locais vêm junto, para o painel não mostrar "h1"');
+});
+
+test('prévia de link do WhatsApp não conta como visita', async () => {
+  const nav = await entrar(navegador());
+  const antes = (await nav('/admin/api/metricas?dias=1')).corpo.hoje.visitas;
+
+  await fetch(`${base}/`, { headers: { 'user-agent': 'WhatsApp/2.23.20' } });
+
+  const depois = (await nav('/admin/api/metricas?dias=1')).corpo.hoje.visitas;
+  assert.equal(depois, antes, 'o robô do WhatsApp não pode inflar o número');
+});

@@ -176,6 +176,19 @@ function limparFotosAntigas(manter) {
   } catch { /* pasta sumiu ou sem permissão: não é motivo para falhar o upload */ }
 }
 
+// --------------------------------------------------------------- indicadores
+
+const metricas = require('./metricas');
+
+router.get('/metricas', (req, res) => {
+  const dias = Math.min(Math.max(Number(req.query.dias) || 30, 1), 180);
+  const r = metricas.resumo(dias);
+  // o nome do local, para o painel não ter que mostrar "h1"
+  const nomes = {};
+  for (const h of dados.ler().hospitais || []) nomes[h.id] = h.nome;
+  res.json({ ...r, nomes });
+});
+
 // ------------------------------------------------------------------ WhatsApp
 
 const wa = require('./whatsapp');

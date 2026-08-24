@@ -22,6 +22,7 @@ const wa = require('./whatsapp');
 const servico = require('./agendamento');
 const auth = require('./auth');
 const rotasAdmin = require('./rotas-admin');
+const metricas = require('./metricas');
 const render = require('./render');
 const dados = require('./dados');
 
@@ -53,6 +54,7 @@ function enderecoDoSite(req) {
 }
 
 app.get('/', (req, res) => {
+  metricas.registrarVisita(req);
   const c = dados.ler();
   res.set('Cache-Control', 'public, max-age=0, must-revalidate');
   res.type('html').send(render.paginaCompleta({
@@ -118,6 +120,7 @@ app.get('/api/hospitais', (_req, res) => {
 
 app.get('/api/horarios', async (req, res) => {
   try {
+    metricas.registrarInteresse(req);
     const dias = Math.min(Math.max(Number(req.query.dias) || 8, 1), 20);
     res.json(await servico.horariosDisponiveis(String(req.query.hospital || ''), dias));
   } catch (e) {
@@ -127,7 +130,9 @@ app.get('/api/horarios', async (req, res) => {
 
 app.post('/api/agendar', limitar(5, 60000), async (req, res) => {
   try {
-    res.json({ ok: true, ...(await servico.agendar(req.body)) });
+    const feito = await servico.agendar(req.body);
+    metricas.registrarAgendamento(req.body && req.body.hospital);
+    res.json({ ok: true, ...feito });
   } catch (e) {
     responderErro(res, e);
   }
