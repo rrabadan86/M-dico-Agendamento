@@ -164,6 +164,9 @@
           ? '<span class="zap-detalhe">os pedidos vão para ' + escapar(formatarZap(z.recepcao)) +
             ' — o número em "Médico e recepção", não o telefone do local</span>'
           : '<span class="zap-detalhe">falta cadastrar o WhatsApp da recepção aqui embaixo</span>') +
+        (z.numero
+          ? '<span class="zap-detalhe">enviando pelo ' + escapar(formatarZap(z.numero)) + '</span>'
+          : '') +
       '</div>' +
       (z.erro ? '<p class="zap-detalhe">' + escapar(z.erro) + '</p>' : '') +
       (z.qr

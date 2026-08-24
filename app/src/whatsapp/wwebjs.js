@@ -169,6 +169,7 @@ function estadoAtual() {
     temQr: Boolean(estado.qr),
     erro: estado.erro,
     desde: estado.desde,
+    numero: numeroConectado(),
   };
 }
 
@@ -209,21 +210,56 @@ function esperarPronto(timeoutMs = 60000) {
  * `getNumberId` resolve as duas coisas: devolve o endereço certo, ou nada, se o
  * número não tiver WhatsApp.
  */
+/** O número em que a sessão está conectada, só dígitos ('' se não conectado). */
+function numeroConectado() {
+  const wid = cliente && cliente.info && cliente.info.wid;
+  return wid ? String(wid.user || '').replace(/\D/g, '') : '';
+}
+
+/**
+ * As formas em que o mesmo telefone brasileiro pode aparecer.
+ *
+ * Duas coisas variam conforme quem digitou: o código do país, que muita gente
+ * omite ao cadastrar, e o nono dígito, que linhas antigas não têm. (62)
+ * 8171-8205, (62) 98171-8205 e +55 62 98171-8205 são o mesmo telefone.
+ *
+ * O comprimento desfaz a ambiguidade do 55 ser também um DDD válido: 11
+ * dígitos é DDD + celular; 13 é país + DDD + celular.
+ */
+function variantes(digitos) {
+  const formas = new Set([digitos]);
+  if (/^\d{10,11}$/.test(digitos)) formas.add(`55${digitos}`);
+  for (const n of [...formas]) {
+    if (/^55\d{2}9\d{8}$/.test(n)) formas.add(n.slice(0, 4) + n.slice(5));
+    if (/^55\d{2}[5-9]\d{7}$/.test(n)) formas.add(`${n.slice(0, 4)}9${n.slice(4)}`);
+  }
+  return formas;
+}
+
+function mesmoTelefone(a, b) {
+  if (!a || !b) return false;
+  const doB = variantes(b);
+  return [...variantes(a)].some((v) => doB.has(v));
+}
+
 async function enderecoDe(numero) {
   const digitos = String(numero).replace(/\D/g, '');
   if (!digitos) throw new Error('Número de WhatsApp vazio.');
 
-  let achado = null;
-  try {
-    achado = await cliente.getNumberId(digitos);
-  } catch (e) {
-    console.error(`[wa] não consegui resolver o número ${digitos}: ${e.message}`);
-  }
+  // Mandar para o próprio número conectado é caso legítimo: o consultório pode
+  // ter um aparelho só, que é ao mesmo tempo a sessão e o telefone da recepção.
+  // O getNumberId não resolve o próprio wid — devolve nulo, como se a linha não
+  // existisse —, então usa o wid da sessão direto.
+  if (mesmoTelefone(digitos, numeroConectado())) return cliente.info.wid._serialized;
 
-  // linha brasileira antiga: tenta a variante sem o nono dígito
-  if (!achado && /^55\d{2}9\d{8}$/.test(digitos)) {
-    const semNove = digitos.slice(0, 4) + digitos.slice(5);
-    try { achado = await cliente.getNumberId(semNove); } catch { /* segue */ }
+  let achado = null;
+  for (const tentativa of variantes(digitos)) {
+    try {
+      achado = await cliente.getNumberId(tentativa);
+    } catch (e) {
+      console.error(`[wa] não consegui resolver o número ${tentativa}: ${e.message}`);
+    }
+    if (achado) break;
   }
 
   if (!achado) {
