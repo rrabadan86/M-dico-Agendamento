@@ -27,6 +27,10 @@ fi
 
 echo "==> commit: $(git -C "$FONTE" log --oneline -1)"
 
+# guarda o lockfile de antes: só reinstala se ele tiver mudado (ver abaixo)
+LOCK_ANTES=""
+[ -f "$DESTINO/package-lock.json" ] && LOCK_ANTES=$(sha1sum < "$DESTINO/package-lock.json")
+
 # cópia de segurança da configuração antes de mexer em qualquer coisa
 if [ -f "$DESTINO/dados/config.json" ]; then
   cp "$DESTINO/dados/config.json" "$HOME/config-backup-$(date +%F-%H%M).json"
@@ -45,7 +49,19 @@ rsync -a --delete \
   "$FONTE/app/" "$DESTINO/"
 
 cd "$DESTINO"
-npm ci --omit=dev
+
+# `npm ci` apaga o node_modules inteiro, e junto vai o Chromium que o
+# Puppeteer baixou para o WhatsApp — são minutos de download e uma chance de
+# falhar com o site fora do ar. Como a maioria das atualizações não mexe em
+# dependência, só reinstala quando o lockfile realmente mudou.
+LOCK_DEPOIS=$(sha1sum < package-lock.json)
+if [ "$LOCK_ANTES" != "$LOCK_DEPOIS" ]; then
+  echo "==> dependências mudaram: reinstalando"
+  npm ci --omit=dev
+else
+  echo "==> dependências iguais: pulando npm ci"
+fi
+
 npm test
 pm2 restart agendamento-onco
 
