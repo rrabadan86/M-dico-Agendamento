@@ -42,10 +42,62 @@ const vazio = () => ({
   unicos: 0,           // pessoas distintas
   interessados: 0,     // pessoas que chegaram a pedir horários
   agendamentos: 0,     // pré-agendamentos criados
+  confirmados: 0,      // a recepção respondeu CONFIRMAR
+  remarcados: 0,       // a recepção respondeu REMARCAR
+  esperaSoma: 0,       // minutos entre o pedido e a confirmação, somados
+  esperaCont: 0,       // quantas confirmações entraram na soma
+  esperaMax: 0,        // a pior espera do dia
   porLocal: {},        // agendamentos por hospital
+  porDiaSemana: {},    // que dia da semana o paciente escolheu
+  porHora: {},         // que hora do dia ele escolheu
+  porTipo: {},         // primeira consulta, retorno, segunda opinião
+  origens: {},         // de onde a visita veio
   digitais: [],        // hashes do dia (só para contar sem repetir)
   viramGrade: [],      // hashes de quem pediu horários
 });
+
+/**
+ * De onde veio a visita.
+ *
+ * Duas fontes, porque uma só não basta. O `?de=` é um rótulo que o médico
+ * cola no próprio link ("...duckdns.org/?de=instagram") e é o único jeito
+ * confiável de reconhecer WhatsApp e Instagram: os dois abrem o site num
+ * navegador interno que não informa a procedência. O cabeçalho do navegador
+ * cobre o resto, principalmente a busca do Google.
+ */
+const SITES = [
+  [/(^|\.)google\./, 'Google'],
+  [/(^|\.)bing\./, 'Bing'],
+  [/duckduckgo/, 'DuckDuckGo'],
+  [/instagram/, 'Instagram'],
+  [/facebook|(^|\.)fb\./, 'Facebook'],
+  [/whatsapp|wa\.me/, 'WhatsApp'],
+  [/linkedin|lnkd\.in/, 'LinkedIn'],
+  [/t\.co$|twitter|(^|\.)x\.com$/, 'X'],
+  [/youtube|youtu\.be/, 'YouTube'],
+  [/doctoralia|boaconsulta/, 'Diretórios médicos'],
+];
+
+function origemDe(req) {
+  const rotulo = String((req.query && req.query.de) || '').trim().slice(0, 24);
+  if (rotulo) return rotulo.replace(/[^\p{L}\p{N} .-]/gu, '') || 'Marcado';
+
+  const bruto = req.headers.referer || req.headers.referrer || '';
+  if (!bruto) return 'Direto ou app';
+  let host;
+  try {
+    host = new URL(bruto).hostname.toLowerCase();
+  } catch {
+    return 'Direto ou app';
+  }
+  // navegação dentro do próprio site não é origem
+  const meu = String(req.headers.host || '').toLowerCase().split(':')[0];
+  if (host === meu) return null;
+  for (const [padrao, nome] of SITES) if (padrao.test(host)) return nome;
+  return host.replace(/^www\./, '').slice(0, 32);
+}
+
+const somar1 = (mapa, chave) => { mapa[chave] = (mapa[chave] || 0) + 1; };
 
 let cache = null;
 let salDoDia = { dia: null, valor: null };
@@ -109,7 +161,16 @@ function doDia(dia) {
     dados[dia] = vazio();
     podar(dados);
   }
-  return dados[dia];
+  // Dia gravado por uma versão anterior não tem os campos novos. Sem
+  // completar, o primeiro acesso do dia estoura ao somar num mapa que não
+  // existe — e como quem chama é a página do paciente, o site sai do ar.
+  // Preenche no próprio objeto: cópia não voltaria para o arquivo.
+  const d = dados[dia];
+  const base = vazio();
+  for (const campo of Object.keys(base)) {
+    if (d[campo] === undefined) d[campo] = base[campo];
+  }
+  return d;
 }
 
 function podar(dados) {
@@ -153,7 +214,13 @@ function registrarVisita(req, agora = new Date()) {
   const dia = diaDe(agora);
   const d = doDia(dia);
   d.visitas += 1;
-  if (anotarDigital(d.digitais, digital(req, dia))) d.unicos += 1;
+  // a origem conta uma vez por pessoa: senão quem recarrega a página dez vezes
+  // faz parecer que aquele canal traz dez vezes mais gente
+  if (anotarDigital(d.digitais, digital(req, dia))) {
+    d.unicos += 1;
+    const origem = origemDe(req);
+    if (origem) somar1(d.origens, origem);
+  }
   agendarGravacao();
 }
 
@@ -166,11 +233,48 @@ function registrarInteresse(req, agora = new Date()) {
   agendarGravacao();
 }
 
-function registrarAgendamento(hospitalId, agora = new Date()) {
+/**
+ * Um pedido enviado.
+ *
+ * `escolha` descreve o que o paciente marcou — o dia da semana, a hora e o
+ * tipo —, não quando ele pediu. É a diferença entre "as pessoas pedem à
+ * noite" e "as pessoas querem ser atendidas na quinta de manhã"; só a
+ * segunda ajuda a montar o expediente.
+ */
+function registrarAgendamento(hospitalId, escolha = {}, agora = new Date()) {
   const d = doDia(diaDe(agora));
   d.agendamentos += 1;
-  const chave = String(hospitalId || 'desconhecido');
-  d.porLocal[chave] = (d.porLocal[chave] || 0) + 1;
+  somar1(d.porLocal, String(hospitalId || 'desconhecido'));
+  if (escolha.data) somar1(d.porDiaSemana, t.diaDaSemana(escolha.data));
+  if (escolha.hora) somar1(d.porHora, String(escolha.hora).slice(0, 2));
+  if (escolha.tipo) somar1(d.porTipo, String(escolha.tipo).slice(0, 40));
+  agendarGravacao();
+}
+
+/**
+ * A recepção confirmou. `minutos` é quanto o paciente esperou desde o pedido.
+ *
+ * Guarda soma e contagem em vez da lista de esperas: a média sai da divisão e
+ * o arquivo não cresce com o movimento. O máximo vai à parte porque é ele que
+ * denuncia o pedido esquecido — uma espera de 9 horas some numa média boa.
+ */
+function registrarConfirmacao(minutos, agora = new Date()) {
+  const d = doDia(diaDe(agora));
+  d.confirmados += 1;
+  // `Number(null)` é 0: sem esta guarda, uma confirmação sem carimbo de hora
+  // entraria na média como espera de zero minuto e faria o indicador parecer
+  // melhor do que é — justamente o erro que um painel não pode cometer.
+  const m = minutos === null || minutos === undefined || minutos === '' ? NaN : Number(minutos);
+  if (Number.isFinite(m) && m >= 0) {
+    d.esperaSoma += m;
+    d.esperaCont += 1;
+    if (m > d.esperaMax) d.esperaMax = m;
+  }
+  agendarGravacao();
+}
+
+function registrarLiberacao(agora = new Date()) {
+  doDia(diaDe(agora)).remarcados += 1;
   agendarGravacao();
 }
 
@@ -191,7 +295,16 @@ function resumo(dias = 30, agora = new Date()) {
       unicos: d.unicos,
       interessados: d.interessados,
       agendamentos: d.agendamentos,
+      confirmados: d.confirmados || 0,
+      remarcados: d.remarcados || 0,
+      esperaSoma: d.esperaSoma || 0,
+      esperaCont: d.esperaCont || 0,
+      esperaMax: d.esperaMax || 0,
       porLocal: { ...d.porLocal },
+      porDiaSemana: { ...d.porDiaSemana },
+      porHora: { ...d.porHora },
+      porTipo: { ...d.porTipo },
+      origens: { ...d.origens },
       // dia anterior ao início da medição: zero aqui não quer dizer
       // "ninguém entrou", quer dizer "não estávamos contando"
       medido: Boolean(dados.desde) && dia >= dados.desde,
@@ -202,7 +315,26 @@ function resumo(dias = 30, agora = new Date()) {
     desde: dados.desde || null,
     total: somar(linhas),
     hoje: somar(linhas.slice(-1)),
+    escolhas: {
+      diaSemana: juntar(linhas, 'porDiaSemana'),
+      hora: juntar(linhas, 'porHora'),
+      tipo: juntar(linhas, 'porTipo'),
+    },
+    origens: juntar(linhas, 'origens'),
   };
+}
+
+/** Soma os mapas de todos os dias num só, do maior para o menor. */
+function juntar(linhas, campo) {
+  const total = {};
+  for (const l of linhas) {
+    for (const [chave, n] of Object.entries(l[campo] || {})) {
+      total[chave] = (total[chave] || 0) + n;
+    }
+  }
+  return Object.entries(total)
+    .sort((a, b) => b[1] - a[1])
+    .map(([chave, n]) => ({ chave, n }));
 }
 
 function somar(linhas) {
@@ -211,11 +343,25 @@ function somar(linhas) {
     unicos: acc.unicos + l.unicos,
     interessados: acc.interessados + l.interessados,
     agendamentos: acc.agendamentos + l.agendamentos,
-  }), { visitas: 0, unicos: 0, interessados: 0, agendamentos: 0 });
+    confirmados: acc.confirmados + (l.confirmados || 0),
+    remarcados: acc.remarcados + (l.remarcados || 0),
+    esperaSoma: acc.esperaSoma + (l.esperaSoma || 0),
+    esperaCont: acc.esperaCont + (l.esperaCont || 0),
+    esperaMax: Math.max(acc.esperaMax, l.esperaMax || 0),
+  }), {
+    visitas: 0, unicos: 0, interessados: 0, agendamentos: 0,
+    confirmados: 0, remarcados: 0, esperaSoma: 0, esperaCont: 0, esperaMax: 0,
+  });
 
   // "de cada 100 pessoas que entraram, quantas agendaram" — sobre visitantes,
   // não sobre visitas: quem abre a página três vezes é uma pessoa só.
   total.conversao = total.unicos ? Math.round((total.agendamentos / total.unicos) * 1000) / 10 : 0;
+  total.esperaMedia = total.esperaCont ? Math.round(total.esperaSoma / total.esperaCont) : null;
+
+  // O que pediu e ainda não teve resposta da recepção. Só faz sentido não ser
+  // negativo: confirmação de pedido de ontem cai no dia de hoje, então num
+  // recorte curto os confirmados podem passar os pedidos.
+  total.parados = Math.max(0, total.agendamentos - total.confirmados - total.remarcados);
   return total;
 }
 
@@ -243,6 +389,7 @@ function _limpar() {
 }
 
 module.exports = {
-  ARQUIVO, registrarVisita, registrarInteresse, registrarAgendamento, resumo,
+  ARQUIVO, registrarVisita, registrarInteresse, registrarAgendamento,
+  registrarConfirmacao, registrarLiberacao, resumo,
   descarregar, _limpar, _gravarAgora: gravar,
 };

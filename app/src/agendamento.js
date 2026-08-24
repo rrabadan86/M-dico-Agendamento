@@ -19,6 +19,7 @@ const protocolo = require('./protocolo');
 const mensagens = require('./mensagens');
 const wa = require('./whatsapp');
 const { validar } = require('./validacao');
+const metricas = require('./metricas');
 
 class ErroDeAgendamento extends Error {
   constructor(mensagem, codigo = 'erro', extra = {}) {
@@ -133,6 +134,19 @@ async function agendar(corpo, agora = new Date()) {
 }
 
 /** Resposta da recepcionista chegando pelo WhatsApp. */
+/**
+ * Quanto o paciente esperou, em minutos, entre pedir e ser confirmado.
+ *
+ * A hora do pedido é a criação do evento no Google — o próprio Google carimba,
+ * então não depende do relógio deste servidor. Devolve null quando o carimbo
+ * não veio, para uma confirmação sem hora não puxar a média para baixo.
+ */
+function esperaEmMinutos(evento, agora = new Date()) {
+  const criado = evento && evento.created ? Date.parse(evento.created) : NaN;
+  if (!Number.isFinite(criado)) return null;
+  return Math.max(0, Math.round((agora.getTime() - criado) / 60000));
+}
+
 async function tratarRespostaRecepcao({ de, texto: corpoDaMensagem, propria = false, responder = null }) {
   const comando = protocolo.interpretar(corpoDaMensagem);
   if (!comando) return null;                       // conversa normal, ignora
@@ -175,6 +189,7 @@ async function tratarRespostaRecepcao({ de, texto: corpoDaMensagem, propria = fa
 
   if (comando.comando === 'CONFIRMAR') {
     await agenda.confirmar(achado.calendarId, achado.evento);
+    metricas.registrarConfirmacao(esperaEmMinutos(achado.evento));
     if (config.whatsapp.avisarPaciente && dadosDoEvento.telefone) {
       await avisarPaciente(dadosDoEvento, hospital, 'confirmacao');
     }
@@ -185,6 +200,7 @@ async function tratarRespostaRecepcao({ de, texto: corpoDaMensagem, propria = fa
 
   if (comando.comando === 'REMARCAR' || comando.comando === 'CANCELAR') {
     await agenda.liberar(achado.calendarId, achado.evento.id);
+    metricas.registrarLiberacao();
     if (comando.comando === 'REMARCAR' && config.whatsapp.avisarPaciente && dadosDoEvento.telefone) {
       await avisarPaciente(dadosDoEvento, hospital, 'remarcacao');
     }

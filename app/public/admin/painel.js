@@ -143,7 +143,75 @@
         ? '<div class="por-local">' + Object.keys(porLocal).map(function (id) {
             return '<span><b>' + porLocal[id] + '</b> ' + escapar(m.nomes[id] || id) + '</span>';
           }).join('') + '</div>'
-        : '');
+        : '') +
+      funil(t) +
+      quadros(m);
+  }
+
+  /** Do pedido à confirmação, com o tempo que o paciente esperou. */
+  function funil(t) {
+    if (!t.agendamentos && !t.confirmados) return '';
+    return '<div class="funil">' +
+      '<h3>Do pedido à confirmação</h3>' +
+      '<div class="funil-linha">' +
+        etapa(t.agendamentos, 'pediram') +
+        etapa(t.confirmados, 'confirmados') +
+        etapa(t.remarcados, 'remarcados') +
+        etapa(t.parados, 'sem resposta', t.parados ? 'atencao' : '') +
+      '</div>' +
+      (t.esperaMedia === null || t.esperaMedia === undefined
+        ? '<p class="marco">Nenhuma confirmação cronometrada ainda.</p>'
+        : '<p class="marco">A recepção leva <b>' + escapar(duracao(t.esperaMedia)) +
+          '</b> em média para confirmar. A pior espera do período foi de <b>' +
+          escapar(duracao(t.esperaMax)) + '</b>.</p>') +
+    '</div>';
+  }
+
+  function etapa(n, rotulo, estado) {
+    return '<div class="etapa"' + (estado ? ' data-estado="' + estado + '"' : '') + '>' +
+      '<b>' + Number(n || 0) + '</b><span>' + escapar(rotulo) + '</span></div>';
+  }
+
+  function duracao(minutos) {
+    var m = Math.round(Number(minutos) || 0);
+    if (m < 60) return m + ' min';
+    var h = Math.floor(m / 60);
+    var resto = m % 60;
+    if (h < 24) return h + 'h' + (resto ? String(resto).padStart(2, '0') : '');
+    return Math.floor(h / 24) + 'd' + (h % 24 ? ' ' + (h % 24) + 'h' : '');
+  }
+
+  var DIA_LONGO = {
+    seg: 'Segunda', ter: 'Terça', qua: 'Quarta', qui: 'Quinta',
+    sex: 'Sexta', sab: 'Sábado', dom: 'Domingo',
+  };
+
+  /** O que os pacientes escolhem e de onde vieram. */
+  function quadros(m) {
+    var e = m.escolhas || {};
+    var partes = [
+      quadro('Dias mais procurados', e.diaSemana, function (c) { return DIA_LONGO[c] || c; }),
+      quadro('Horários mais procurados', e.hora, function (c) { return c + 'h'; }),
+      quadro('Tipo de consulta', e.tipo),
+      quadro('De onde vieram', m.origens),
+    ].filter(Boolean);
+    if (!partes.length) return '';
+    return '<div class="quadros">' + partes.join('') + '</div>';
+  }
+
+  function quadro(titulo, itens, formatar) {
+    if (!itens || !itens.length) return '';
+    var maior = itens[0].n || 1;
+    return '<div class="quadro"><h4>' + escapar(titulo) + '</h4>' +
+      itens.slice(0, 6).map(function (i) {
+        var rotulo = formatar ? formatar(i.chave) : i.chave;
+        return '<div class="fatia">' +
+          '<span class="fatia-nome">' + escapar(rotulo) + '</span>' +
+          '<span class="fatia-barra"><i style="width:' + Math.round((i.n / maior) * 100) + '%"></i></span>' +
+          '<b>' + i.n + '</b>' +
+        '</div>';
+      }).join('') +
+    '</div>';
   }
 
   function cartao(valor, rotulo, ajuda) {

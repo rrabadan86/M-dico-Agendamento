@@ -143,7 +143,9 @@ app.get('/api/horarios', async (req, res) => {
 app.post('/api/agendar', limitar(5, 60000), async (req, res) => {
   try {
     const feito = await servico.agendar(req.body);
-    metricas.registrarAgendamento(req.body && req.body.hospital);
+    metricas.registrarAgendamento(req.body && req.body.hospital, {
+      data: feito.data, hora: feito.hora, tipo: req.body && req.body.tipo,
+    });
     res.json({ ok: true, ...feito });
   } catch (e) {
     responderErro(res, e);

@@ -357,3 +357,40 @@
   font-size:.88rem; color:var(--ink-2);
 }
 .por-local b{ color:var(--ink); font-weight:600; }
+
+/* ---------- funil e quadros ---------- */
+.funil{ margin-top:28px; padding-top:22px; border-top:1px solid var(--line); }
+.funil h3, .quadro h4{
+  font-size:.74rem; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--ink-3); font-weight:600; margin:0 0 14px;
+}
+.funil-linha{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px;
+}
+.etapa{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:12px 14px;
+}
+/* pedido sem resposta é o único número aqui que pede ação */
+.etapa[data-estado="atencao"]{ border-color:var(--warn); background:var(--warn-soft); }
+.etapa[data-estado="atencao"] b, .etapa[data-estado="atencao"] span{ color:var(--warn); }
+.etapa b{
+  display:block; font-family:"Fraunces",Georgia,serif; font-weight:500;
+  font-size:1.4rem; line-height:1.1;
+}
+.etapa span{ display:block; margin-top:3px; font-size:.76rem; color:var(--ink-3); }
+
+.quadros{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:28px 34px; margin-top:30px; padding-top:24px; border-top:1px solid var(--line);
+}
+.fatia{
+  display:grid; grid-template-columns:1fr 84px 30px; gap:10px;
+  align-items:center; font-size:.88rem; padding:5px 0;
+}
+.fatia-nome{
+  color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.fatia-barra{ height:6px; background:var(--surface-3); border-radius:99px; overflow:hidden; }
+.fatia-barra i{ display:block; height:100%; background:var(--brand); border-radius:99px; }
+.fatia b{ text-align:right; font-size:.86rem; }

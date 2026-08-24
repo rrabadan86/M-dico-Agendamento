@@ -187,3 +187,111 @@ test('o marco não é confundido com um dia', () => {
   assert.equal(dias.length, 3, 'a chave "desde" não vira uma coluna');
   assert.equal(total.visitas, 1);
 });
+
+test('dia gravado por versão anterior recebe os campos novos', () => {
+  // sem isto o primeiro acesso do dia estoura somando num mapa inexistente —
+  // e quem chama é a página do paciente, então o site inteiro cai
+  fs.writeFileSync(arquivo, JSON.stringify({
+    desde: '2026-08-24',
+    '2026-08-24': { visitas: 14, unicos: 2, interessados: 2, agendamentos: 0, porLocal: {} },
+  }), 'utf8');
+  metricas._limpar();
+
+  assert.doesNotThrow(() => metricas.registrarVisita(visitante('9.9.9.9'), DIA));
+  assert.doesNotThrow(() => metricas.registrarConfirmacao(30, DIA));
+
+  const { hoje, origens } = metricas.resumo(1, DIA);
+  assert.equal(hoje.visitas, 15, 'o que já estava contado continua lá');
+  assert.equal(hoje.confirmados, 1);
+  assert.deepEqual(origens, [{ chave: 'Direto ou app', n: 1 }]);
+});
+
+test('o preenchimento vai para o arquivo, não para uma cópia', () => {
+  fs.writeFileSync(arquivo, JSON.stringify({
+    desde: '2026-08-24',
+    '2026-08-24': { visitas: 1, unicos: 1, interessados: 0, agendamentos: 0, porLocal: {} },
+  }), 'utf8');
+  metricas._limpar();
+
+  metricas.registrarAgendamento('h1', { data: '2026-08-27', hora: '08:00', tipo: 'Retorno' }, DIA);
+  metricas._gravarAgora();
+  metricas._limpar();
+
+  const { escolhas, hoje } = metricas.resumo(1, DIA);
+  assert.equal(hoje.agendamentos, 1);
+  assert.deepEqual(escolhas.tipo, [{ chave: 'Retorno', n: 1 }]);
+});
+
+test('a origem é classificada, e só conta uma vez por pessoa', () => {
+  const daBusca = (ip, ref) => ({
+    headers: { 'user-agent': 'Chrome/' + ip, referer: ref, host: 'drfelipe.exemplo' },
+    socket: { remoteAddress: ip }, query: {},
+  });
+  metricas.registrarVisita(daBusca('1.1.1.1', 'https://www.google.com/search?q=oncologista'), DIA);
+  metricas.registrarVisita(daBusca('1.1.1.1', 'https://www.google.com/'), DIA);   // recarregou
+  metricas.registrarVisita(daBusca('2.2.2.2', 'https://l.instagram.com/'), DIA);
+  metricas.registrarVisita(daBusca('3.3.3.3', ''), DIA);
+
+  assert.deepEqual(metricas.resumo(1, DIA).origens, [
+    { chave: 'Google', n: 1 },
+    { chave: 'Instagram', n: 1 },
+    { chave: 'Direto ou app', n: 1 },
+  ]);
+});
+
+test('navegação dentro do próprio site não vira origem', () => {
+  metricas.registrarVisita({
+    headers: { 'user-agent': 'Chrome/x', referer: 'https://drfelipe.exemplo/manual', host: 'drfelipe.exemplo' },
+    socket: { remoteAddress: '1.1.1.1' }, query: {},
+  }, DIA);
+  const r = metricas.resumo(1, DIA);
+  assert.equal(r.hoje.unicos, 1, 'a pessoa conta');
+  assert.deepEqual(r.origens, [], 'mas não como origem externa');
+});
+
+test('o rótulo ?de= vence o cabeçalho — é o que funciona no WhatsApp', () => {
+  metricas.registrarVisita({
+    headers: { 'user-agent': 'Chrome/x', host: 'drfelipe.exemplo' },
+    socket: { remoteAddress: '1.1.1.1' }, query: { de: 'cartao-de-visita' },
+  }, DIA);
+  assert.deepEqual(metricas.resumo(1, DIA).origens, [{ chave: 'cartao-de-visita', n: 1 }]);
+});
+
+test('o funil vai do pedido à confirmação, com a espera', () => {
+  metricas.registrarAgendamento('h1', { data: '2026-08-27', hora: '08:00', tipo: 'Primeira consulta' }, DIA);
+  metricas.registrarAgendamento('h1', { data: '2026-08-27', hora: '08:40', tipo: 'Retorno' }, DIA);
+  metricas.registrarAgendamento('h2', { data: '2026-08-28', hora: '14:00', tipo: 'Retorno' }, DIA);
+  metricas.registrarConfirmacao(12, DIA);
+  metricas.registrarConfirmacao(48, DIA);
+  metricas.registrarLiberacao(DIA);
+
+  const { hoje, escolhas } = metricas.resumo(1, DIA);
+  assert.equal(hoje.agendamentos, 3);
+  assert.equal(hoje.confirmados, 2);
+  assert.equal(hoje.remarcados, 1);
+  assert.equal(hoje.parados, 0, '3 pedidos, 2 confirmados, 1 remarcado');
+  assert.equal(hoje.esperaMedia, 30);
+  assert.equal(hoje.esperaMax, 48, 'a pior espera não some na média');
+  assert.deepEqual(escolhas.tipo, [{ chave: 'Retorno', n: 2 }, { chave: 'Primeira consulta', n: 1 }]);
+  assert.deepEqual(escolhas.hora, [{ chave: '08', n: 2 }, { chave: '14', n: 1 }]);
+});
+
+test('pedido sem resposta da recepção aparece como parado', () => {
+  metricas.registrarAgendamento('h1', {}, DIA);
+  metricas.registrarAgendamento('h1', {}, DIA);
+  metricas.registrarConfirmacao(20, DIA);
+  assert.equal(metricas.resumo(1, DIA).hoje.parados, 1);
+});
+
+test('confirmação de pedido de ontem não deixa "parados" negativo', () => {
+  metricas.registrarConfirmacao(600, DIA);         // o pedido foi ontem
+  assert.equal(metricas.resumo(1, DIA).hoje.parados, 0);
+});
+
+test('confirmação sem hora de criação não estraga a média', () => {
+  metricas.registrarConfirmacao(20, DIA);
+  metricas.registrarConfirmacao(null, DIA);        // o Google não devolveu o carimbo
+  const { hoje } = metricas.resumo(1, DIA);
+  assert.equal(hoje.confirmados, 2, 'conta como confirmada');
+  assert.equal(hoje.esperaMedia, 20, 'mas fica fora da média');
+});
