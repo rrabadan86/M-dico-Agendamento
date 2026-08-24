@@ -481,6 +481,10 @@ footer strong{color:var(--ink-2)}
 .manual section .wrap{max-width:840px}
 .manual p{color:var(--ink-2); max-width:70ch}
 .manual p + p{margin-top:14px}
+/* parágrafo logo depois de uma lista ou tabela ficava colado na última linha */
+.manual .glossario + p,
+.manual .tabela-manual + p,
+.manual .lista-simples + p{margin-top:20px}
 
 .sumario{
   display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));

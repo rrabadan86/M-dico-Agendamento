@@ -238,7 +238,9 @@ ${bloco('regras', 'As regras que definem os horários', `
 `)}
 
 ${bloco('indicadores', 'Os indicadores', `
-  <p>No topo do painel, com seletor de 7, 30 ou 90 dias:</p>
+  <p>No topo do painel, com seletor de 7, 30 ou 90 dias. São quatro grupos.</p>
+
+  <h3>Quem entrou</h3>
   <dl class="glossario">
     <dt>pessoas</dt>
     <dd>Visitantes distintos. Quem abriu o site três vezes no mesmo dia conta uma vez.</dd>
@@ -254,8 +256,58 @@ ${bloco('indicadores', 'Os indicadores', `
     <dd>De cada 100 pessoas que entraram, quantas agendaram. É calculado sobre
       "pessoas", não sobre "visitas".</dd>
   </dl>
-  <p>As barras mostram um dia por coluna: a parte clara é quanta gente entrou, a escura
-    é quantos agendaram. Passando o mouse aparece o número exato do dia.</p>
+  <p>O par que mais diz alguma coisa é <strong>pessoas → viram horários</strong>. Se
+    muita gente entra e pouca abre a agenda, o problema está na página. Se muita gente
+    abre a agenda e pouca agenda, o problema está no formulário ou na falta de horário bom.</p>
+
+  <h3>Do pedido à confirmação</h3>
+  <dl class="glossario">
+    <dt>pediram · confirmados · remarcados</dt>
+    <dd>O caminho completo de um pedido. "Confirmados" e "remarcados" contam as respostas
+      da recepção no WhatsApp.</dd>
+    <dt>sem resposta</dt>
+    <dd>Pedidos que ainda não tiveram nem <code>CONFIRMAR</code> nem <code>REMARCAR</code>.
+      É o único número do painel que pede ação — por isso fica destacado quando passa de
+      zero.</dd>
+    <dt>tempo médio e pior espera</dt>
+    <dd>Quanto a recepção demora para confirmar, contado desde o instante do pedido.
+      A pior espera aparece separada de propósito: uma demora de nove horas desaparece
+      dentro de uma média boa, e é justamente ela que denuncia pedido esquecido.</dd>
+  </dl>
+  <p class="nota">Este grupo existe porque o site promete confirmação <em>no mesmo dia
+    útil</em>. Sem medir, ninguém sabe se a promessa se cumpre.</p>
+
+  <h3>O que os pacientes escolhem</h3>
+  <p>Dias da semana, horários e tipos de consulta mais procurados. Vale reparar que é a
+    <strong>consulta escolhida</strong>, não a hora em que a pessoa mexeu no site: "querem
+    quinta de manhã" ajuda a montar o expediente, "pedem à noite" não ajuda em nada.</p>
+  <p>Se um dia da agenda concentra a procura e outro fica vazio, aqui é onde isso
+    aparece — e o expediente é a decisão mais cara de errar, porque envolve hospital,
+    deslocamento e agenda pessoal.</p>
+
+  <h3>De onde vieram</h3>
+  <p>Google, Instagram, WhatsApp ou acesso direto. Tem um detalhe importante: o navegador
+    <strong>não informa</strong> a procedência quando o link é aberto de dentro do
+    WhatsApp ou do Instagram — os dois abrem o site num navegador interno. Sem ajuda,
+    esses dois canais cairiam todos em "direto".</p>
+  <p>Para separá-los, acrescente um rótulo ao final do endereço ao divulgar:</p>
+  <table class="tabela-manual">
+    <thead><tr><th>Onde você vai colar o link</th><th>Endereço a usar</th></tr></thead>
+    <tbody>
+      <tr><td>Bio do Instagram</td><td><code>${esc(url || '')}/?de=instagram</code></td></tr>
+      <tr><td>Mensagens de WhatsApp</td><td><code>${esc(url || '')}/?de=whatsapp</code></td></tr>
+      <tr><td>Cartão de visita, receituário</td><td><code>${esc(url || '')}/?de=cartao</code></td></tr>
+    </tbody>
+  </table>
+  <p>O paciente não nota diferença nenhuma — abre a mesma página. Pode inventar os
+    rótulos que quiser; eles aparecem no painel com o nome que você escreveu.</p>
+
+  <h3>Como ler o gráfico</h3>
+  <p>Uma coluna por dia: a parte clara é quanta gente entrou, a escura é quantos
+    agendaram. Passando o mouse aparece o número exato daquele dia.</p>
+  <p>Colunas <strong>hachuradas</strong> são dias anteriores ao início da contagem.
+    Não querem dizer que ninguém entrou — querem dizer que o sistema ainda não estava
+    medindo. A data em que a medição começou aparece logo abaixo do gráfico.</p>
   <p class="nota">Robôs de busca e a prévia de link do WhatsApp não entram na conta —
     sem esse filtro o número maior seria o do robô, não o de gente.</p>
 `)}
@@ -277,6 +329,16 @@ ${bloco('duvidas', 'Quando algo não sai como esperado', `
     <dt>Quero fechar um dia inteiro</dt>
     <dd>Crie um evento de dia inteiro na agenda do Google daquele local. O dia some do
       site sozinho.</dd>
+    <dt>Apaguei consultas da agenda e os indicadores não mudaram</dt>
+    <dd>É assim mesmo. A agenda do Google guarda o <strong>estado atual</strong> — o que
+      está marcado agora. Os indicadores guardam o <strong>histórico</strong> — quantos
+      pedidos chegaram naquele dia. Apagar o compromisso depois não faz o pedido não ter
+      acontecido, e se o número caísse junto você nunca saberia que aquele dia foi
+      movimentado.</dd>
+    <dt>Os indicadores mostram zero num período em que houve movimento</dt>
+    <dd>Confira a data logo abaixo do gráfico: ela diz quando a contagem começou. Antes
+      dessa data nada foi medido, e as colunas aparecem hachuradas justamente para não
+      afirmar que ninguém entrou.</dd>
   </dl>
 `)}
 

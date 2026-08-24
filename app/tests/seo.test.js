@@ -206,3 +206,12 @@ test('o manual acompanha o nome que está configurado', async () => {
   const { html } = await pegar('/manual');
   assert.match(html, /Dr\. Felipe Márcio Araújo Oliveira/);
 });
+
+test('o manual explica os indicadores novos e como marcar os links', async () => {
+  const { html } = await pegar('/manual');
+  assert.match(html, /sem resposta/);
+  assert.match(html, /pior espera/);
+  assert.match(html, /De onde vieram/);
+  assert.match(html, /\?de=instagram/, 'ensina a marcar o link, que é o que funciona no app');
+  assert.match(html, /hachurad/, 'explica as colunas sem medição');
+});
