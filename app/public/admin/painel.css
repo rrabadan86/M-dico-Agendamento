@@ -9,6 +9,12 @@
 .entrar-card h1{ font-size:1.7rem; margin:10px 0 8px; }
 
 .painel{ padding:34px 22px 80px; display:grid; gap:0; }
+/* O painel separa os blocos por linha, não por fundo alternado. A regra
+   `section:nth-of-type(even)` do site pinta uma seção sim, outra não — lá ela
+   funciona porque o fundo vai de ponta a ponta com o texto recuado dentro;
+   aqui o fundo tem a largura do conteúdo e o texto encosta na borda. */
+.painel .bloco,
+.painel .bloco-conteudo{ background:transparent; }
 .bloco{ padding:30px 0; border-bottom:1px solid var(--line); }
 .bloco:last-child{ border-bottom:0; }
 .bloco h2{ margin-top:8px; }
