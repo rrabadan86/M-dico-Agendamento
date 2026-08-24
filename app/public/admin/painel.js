@@ -159,8 +159,18 @@
    * cinco números por dia não compensa carregar uma.
    */
   function barras(dias) {
-    var teto = dias.reduce(function (a, d) { return Math.max(a, d.unicos); }, 0) || 1;
-    return '<div class="barras" role="img" aria-label="visitantes e agendamentos por dia">' +
+    var teto = dias.reduce(function (a, d) { return Math.max(a, d.unicos); }, 0);
+
+    // Sem ninguém no período, um gráfico de barras é uma faixa vazia de 130px
+    // que parece defeito. Uma frase explica melhor.
+    if (!teto) {
+      return '<p class="vazio-metricas">Ainda não há movimento no período. ' +
+        'A contagem começou quando esta tela foi instalada — dias anteriores ' +
+        'aparecem zerados porque nada foi medido, não porque ninguém entrou.</p>';
+    }
+
+    return '<div class="grafico">' +
+      '<div class="barras" role="img" aria-label="visitantes e agendamentos por dia">' +
       dias.map(function (d) {
         var alturaPessoas = Math.round((d.unicos / teto) * 100);
         var alturaAgenda = d.unicos ? Math.round((d.agendamentos / teto) * 100) : 0;
@@ -173,6 +183,7 @@
           '</div>' +
         '</div>';
       }).join('') +
+      '</div>' +
       '<div class="legenda"><span class="chave pessoas"></span>pessoas' +
         '<span class="chave agenda"></span>agendaram' +
         '<span class="periodo-txt">' + escapar(dias[0].dia.slice(8) + '/' + dias[0].dia.slice(5, 7)) +

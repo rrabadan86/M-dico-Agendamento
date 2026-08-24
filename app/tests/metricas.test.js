@@ -134,3 +134,21 @@ test('nem o IP nem o navegador ficam gravados', () => {
   assert.ok(!bruto.includes('187.45.200.13'), 'IP não pode estar no arquivo');
   assert.ok(!bruto.includes('iPhone'), 'navegador não pode estar no arquivo');
 });
+
+test('o que estava para gravar não se perde no restart do pm2', () => {
+  // a gravação é adiada 1s e o timer é unref: sem o descarregar(), todo
+  // `pm2 restart` jogaria fora as contagens do último segundo
+  metricas.registrarVisita(visitante('1.1.1.1'), DIA);
+  assert.ok(!fs.existsSync(arquivo), 'ainda não foi para o disco');
+
+  metricas.descarregar();
+  assert.ok(fs.existsSync(arquivo), 'o desligamento força a gravação');
+
+  metricas._limpar();
+  assert.equal(metricas.resumo(1, DIA).hoje.visitas, 1);
+});
+
+test('descarregar sem nada pendente não faz nada', () => {
+  assert.doesNotThrow(() => metricas.descarregar());
+  assert.ok(!fs.existsSync(arquivo));
+});

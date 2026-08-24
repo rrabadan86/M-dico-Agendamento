@@ -198,6 +198,22 @@ function somar(linhas) {
   return total;
 }
 
+/**
+ * Grava o que ainda não foi para o disco antes do processo morrer.
+ *
+ * A gravação é adiada em 1 segundo para não bater no disco a cada visita, e o
+ * timer é `unref` — ou seja, não segura o processo no ar. Sem isto, todo
+ * `pm2 restart` (e são vários, a cada atualização) descartaria as contagens
+ * do último segundo.
+ */
+function descarregar() {
+  if (!pendente) return;
+  clearTimeout(pendente);
+  pendente = null;
+  gravar();
+}
+for (const sinal of ['SIGINT', 'SIGTERM', 'beforeExit']) process.on(sinal, descarregar);
+
 /** Só para teste: esquece o que está em memória. */
 function _limpar() {
   cache = null;
@@ -207,5 +223,5 @@ function _limpar() {
 
 module.exports = {
   ARQUIVO, registrarVisita, registrarInteresse, registrarAgendamento, resumo,
-  _limpar, _gravarAgora: gravar,
+  descarregar, _limpar, _gravarAgora: gravar,
 };
