@@ -138,7 +138,7 @@
         cartao(t.agendamentos, 'agendaram', 'pedidos enviados') +
         cartao(t.conversao + '%', 'conversão', 'de cada 100 pessoas') +
       '</div>' +
-      barras(m.dias) +
+      barras(m.dias, m.desde) +
       (Object.keys(porLocal).length
         ? '<div class="por-local">' + Object.keys(porLocal).map(function (id) {
             return '<span><b>' + porLocal[id] + '</b> ' + escapar(m.nomes[id] || id) + '</span>';
@@ -158,7 +158,7 @@
    * com a fatia de quem agendou destacada. Sem biblioteca de gráfico — para
    * cinco números por dia não compensa carregar uma.
    */
-  function barras(dias) {
+  function barras(dias, desde) {
     var teto = dias.reduce(function (a, d) { return Math.max(a, d.unicos); }, 0);
 
     // Sem ninguém no período, um gráfico de barras é uma faixa vazia de 130px
@@ -172,9 +172,17 @@
     return '<div class="grafico">' +
       '<div class="barras" role="img" aria-label="visitantes e agendamentos por dia">' +
       dias.map(function (d) {
+        var dia = d.dia.slice(8) + '/' + d.dia.slice(5, 7);
+
+        // Dia anterior ao início da contagem não é "zero pessoas", é "não
+        // sabemos". Desenhar barra zerada aqui faria a tela afirmar que
+        // ninguém entrou num período em que ninguém estava medindo.
+        if (!d.medido) {
+          return '<div class="barra nao-medido" title="' + dia + ': antes de a contagem começar"></div>';
+        }
+
         var alturaPessoas = Math.round((d.unicos / teto) * 100);
         var alturaAgenda = d.unicos ? Math.round((d.agendamentos / teto) * 100) : 0;
-        var dia = d.dia.slice(8) + '/' + d.dia.slice(5, 7);
         return '<div class="barra" title="' + dia + ': ' + d.unicos + ' pessoa(s), ' +
             d.agendamentos + ' agendamento(s)">' +
           '<div class="col">' +
@@ -186,10 +194,22 @@
       '</div>' +
       '<div class="legenda"><span class="chave pessoas"></span>pessoas' +
         '<span class="chave agenda"></span>agendaram' +
+        (dias.some(function (d) { return !d.medido; })
+          ? '<span class="chave sem-medida"></span>sem medição'
+          : '') +
         '<span class="periodo-txt">' + escapar(dias[0].dia.slice(8) + '/' + dias[0].dia.slice(5, 7)) +
         ' → ' + escapar(dias[dias.length - 1].dia.slice(8) + '/' + dias[dias.length - 1].dia.slice(5, 7)) +
         '</span></div>' +
+      (desde && dias[0].dia < desde
+        ? '<p class="marco">A contagem começou em <b>' + escapar(dataCurta(desde)) +
+          '</b>. Antes disso o sistema não media — os dias em branco não querem ' +
+          'dizer que ninguém entrou.</p>'
+        : '') +
     '</div>';
+  }
+
+  function dataCurta(iso) {
+    return iso.slice(8) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
   }
 
   /* ------------------------------------------------------- WhatsApp */

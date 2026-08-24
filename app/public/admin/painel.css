@@ -320,6 +320,25 @@
 .barra .parte.agenda{ background:var(--brand); }
 .barra:hover .parte.pessoas{ background:var(--surface-3); }
 
+/* Dia anterior ao início da contagem: hachura leve, sem barra. Não é zero,
+   é ausência de medida — e a tela precisa dizer isso sem palavra nenhuma. */
+.barra.nao-medido{
+  align-self:stretch; border-radius:3px;
+  background:repeating-linear-gradient(
+    -45deg, transparent, transparent 3px, var(--line) 3px, var(--line) 4px);
+  opacity:.5;
+}
+.legenda .chave.sem-medida{
+  margin-left:12px;
+  background:repeating-linear-gradient(
+    -45deg, transparent, transparent 2px, var(--line-strong) 2px, var(--line-strong) 3px);
+}
+.marco{
+  margin:14px 0 0; max-width:66ch;
+  font-size:.84rem; color:var(--ink-3);
+}
+.marco b{ color:var(--ink-2); }
+
 /* A legenda ficava posicionada por fora da caixa das barras, então nada
    reservava o espaço dela e a seção seguinte subia por cima. Em fluxo
    normal, o próprio conteúdo empurra o que vem depois. */

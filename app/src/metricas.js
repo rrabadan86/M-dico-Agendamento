@@ -50,6 +50,10 @@ const vazio = () => ({
 let cache = null;
 let salDoDia = { dia: null, valor: null };
 
+/** As chaves que são dias; `desde` e afins ficam de fora. */
+const ehDia = (k) => /^\d{4}-\d{2}-\d{2}$/.test(k);
+const diasNoArquivo = (dados) => Object.keys(dados).filter(ehDia).sort();
+
 function ler() {
   if (cache) return cache;
   try {
@@ -57,6 +61,12 @@ function ler() {
     if (!cache || typeof cache !== 'object') cache = {};
   } catch {
     cache = {};                       // primeira execução, ou arquivo corrompido
+  }
+  // arquivo gravado antes de existir o marco: o dia mais antigo que ele tem
+  // é, por definição, o primeiro dia que chegou a ser medido
+  if (!cache.desde) {
+    const primeiro = diasNoArquivo(cache)[0];
+    if (primeiro) cache.desde = primeiro;
   }
   return cache;
 }
@@ -92,6 +102,9 @@ function diaDe(agora) {
 
 function doDia(dia) {
   const dados = ler();
+  // o primeiro dia medido fica registrado: sem isso não há como distinguir
+  // "ninguém entrou" de "ainda não estávamos contando"
+  if (!dados.desde) dados.desde = dia;
   if (!dados[dia]) {
     dados[dia] = vazio();
     podar(dados);
@@ -100,7 +113,7 @@ function doDia(dia) {
 }
 
 function podar(dados) {
-  const dias = Object.keys(dados).sort();
+  const dias = diasNoArquivo(dados);
   while (dias.length > DIAS_GUARDADOS) delete dados[dias.shift()];
 }
 
@@ -179,9 +192,17 @@ function resumo(dias = 30, agora = new Date()) {
       interessados: d.interessados,
       agendamentos: d.agendamentos,
       porLocal: { ...d.porLocal },
+      // dia anterior ao início da medição: zero aqui não quer dizer
+      // "ninguém entrou", quer dizer "não estávamos contando"
+      medido: Boolean(dados.desde) && dia >= dados.desde,
     });
   }
-  return { dias: linhas, total: somar(linhas), hoje: somar(linhas.slice(-1)) };
+  return {
+    dias: linhas,
+    desde: dados.desde || null,
+    total: somar(linhas),
+    hoje: somar(linhas.slice(-1)),
+  };
 }
 
 function somar(linhas) {

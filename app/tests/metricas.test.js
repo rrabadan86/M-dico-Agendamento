@@ -152,3 +152,38 @@ test('descarregar sem nada pendente não faz nada', () => {
   assert.doesNotThrow(() => metricas.descarregar());
   assert.ok(!fs.existsSync(arquivo));
 });
+
+test('dias anteriores ao início da contagem são marcados como não medidos', () => {
+  // é a diferença entre "ninguém entrou" e "não estávamos contando" — sem
+  // ela, a tela afirma um mês de movimento zero que nunca foi observado
+  metricas.registrarVisita(visitante('1.1.1.1'), DIA);
+
+  const { dias, desde } = metricas.resumo(30, DIA);
+  assert.equal(desde, '2026-08-24');
+  assert.equal(dias.filter((d) => d.medido).length, 1);
+  assert.equal(dias.filter((d) => !d.medido).length, 29);
+  assert.equal(dias[dias.length - 1].medido, true, 'hoje é medido');
+});
+
+test('arquivo antigo, sem o marco, adota o dia mais velho que tem', () => {
+  fs.writeFileSync(arquivo, JSON.stringify({
+    '2026-08-20': { visitas: 3, unicos: 2, interessados: 1, agendamentos: 0, porLocal: {}, digitais: [], viramGrade: [] },
+    '2026-08-24': { visitas: 1, unicos: 1, interessados: 0, agendamentos: 0, porLocal: {}, digitais: [], viramGrade: [] },
+  }), 'utf8');
+  metricas._limpar();
+
+  const { dias, desde } = metricas.resumo(10, DIA);
+  assert.equal(desde, '2026-08-20');
+  assert.equal(dias.find((d) => d.dia === '2026-08-19').medido, false);
+  assert.equal(dias.find((d) => d.dia === '2026-08-22').medido, true, 'dia sem visita, mas já medido');
+});
+
+test('o marco não é confundido com um dia', () => {
+  metricas.registrarVisita(visitante('1.1.1.1'), DIA);
+  metricas._gravarAgora();
+  metricas._limpar();
+
+  const { dias, total } = metricas.resumo(3, DIA);
+  assert.equal(dias.length, 3, 'a chave "desde" não vira uma coluna');
+  assert.equal(total.visitas, 1);
+});
