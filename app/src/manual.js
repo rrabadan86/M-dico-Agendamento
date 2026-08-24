@@ -146,6 +146,10 @@ ${bloco('paciente', 'A página do paciente', `
 ${bloco('whatsapp', 'A conversa com a recepção', `
   <p>Toda a confirmação acontece por mensagem, sem ninguém precisar abrir sistema nenhum.
     A recepção responde na mesma conversa em que recebeu o pedido.</p>
+  <p>O pedido vai <strong>para a recepção do local que o paciente escolheu</strong>. O
+    médico atende em mais de um lugar, e quem atende o telefone costuma ser outra pessoa
+    em cada um — o pedido do hospital A não pode cair na secretária do hospital B. Se a
+    mesma pessoa cuida dos dois, basta repetir o número no cadastro dos dois locais.</p>
   <table class="tabela-manual">
     <thead><tr><th>O que responder</th><th>O que acontece</th></tr></thead>
     <tbody>
@@ -164,8 +168,8 @@ ${bloco('whatsapp', 'A conversa com a recepção', `
   <p>O <strong>protocolo</strong> (<code>PA-0000-0000</code>) vem na mensagem. Pode estar em
     qualquer lugar do texto, e maiúscula ou minúscula não importa. Conversa normal não
     dispara nada: só as duas palavras acima, acompanhadas de um protocolo, viram comando.</p>
-  <p class="nota">Comando vindo de um número que não é o da recepção é ignorado, para
-    ninguém confirmar consulta por engano ou de propósito.</p>
+  <p class="nota">Comando vindo de um número que não está cadastrado em nenhum local é
+    ignorado, para ninguém confirmar consulta por engano ou de propósito.</p>
 `)}
 
 ${bloco('painel', 'O painel do médico', `
@@ -180,7 +184,8 @@ ${bloco('painel', 'O painel do médico', `
     <dt>Locais de atendimento</dt>
     <dd>Adicionar, editar, desligar ou excluir um local. Cada local tem a sua agenda do
       Google, os dias e horários em que o médico atende ali, a duração da consulta,
-      quantas consultas cabem no mesmo horário e, se quiser, um WhatsApp próprio.
+      quantas consultas cabem no mesmo horário e <strong>o WhatsApp da recepção
+      daquele lugar</strong>.
       <strong>Desligar</strong> tira o local do site na hora sem apagar nada;
       <strong>excluir</strong> remove de vez.</dd>
     <dt>Como ligar uma agenda nova</dt>
@@ -191,12 +196,13 @@ ${bloco('painel', 'O painel do médico', `
       ver os horários mas não marcar consulta.</dd>
     <dt>WhatsApp</dt>
     <dd>Conectar o WhatsApp do consultório pelo QR, ver se está conectado, enviar uma
-      mensagem de teste e desconectar. Mostra também por qual número as mensagens saem
-      e para qual número vão. Se aparecer aviso de mensagem não entregue, há um botão
+      mensagem de teste e desconectar. Mostra por qual número as mensagens saem — um só,
+      o do consultório — e a recepção de cada local, que é para onde elas vão. Se aparecer aviso de mensagem não entregue, há um botão
       para reenviar.</dd>
     <dt>Médico e recepção</dt>
-    <dd>Nome, especialidade, registro profissional e o WhatsApp da recepção — o número
-      que recebe os pedidos e responde <code>CONFIRMAR</code>.</dd>
+    <dd>Nome, especialidade, registro profissional e o nome de quem confirma. O número
+      de WhatsApp <strong>não fica aqui</strong>: ele pertence a cada local, porque
+      quem atende o telefone é outra pessoa em cada lugar.</dd>
   </dl>
 
   <h3>Aba <em>Site</em></h3>
@@ -318,7 +324,8 @@ ${bloco('duvidas', 'Quando algo não sai como esperado', `
     <dd>Quase sempre é o expediente: confira, no painel, se o local tem faixas nos dias
       certos. Se tiver, veja se a agenda do Google não está tomada por compromissos.</dd>
     <dt>A recepção não recebeu a mensagem</dt>
-    <dd>Veja o bloco WhatsApp no painel. Se estiver desconectado, é só ler o QR de novo.
+    <dd>Veja o bloco WhatsApp no painel: ele lista a recepção de cada local, e avisa
+      quando algum está sem número. Se a conexão estiver caída, é só ler o QR de novo.
       Quando um aviso falha, ele fica marcado e o painel oferece o reenvio — a consulta
       não se perde.</dd>
     <dt>Confirmei e a agenda não mudou</dt>

@@ -170,12 +170,18 @@ async function tratarRespostaRecepcao({ de, texto: corpoDaMensagem, propria = fa
    * tentar enviar para aquilo falha. Responder na mesma conversa não depende
    * de resolver número nenhum; o envio direto fica só como reserva.
    */
+  let localDoProtocolo = null;                     // preenchido ao achar o evento
   const avisar = async (texto) => {
     if (responder) return responder(texto);
-    // sem a conversa em mãos, o único destino confiável é o número cadastrado:
-    // o endereço que veio na mensagem pode ser um identificador interno, e
-    // "parece telefone" não distingue — os dois têm 14 dígitos
-    return wa.enviar(config.whatsapp.recepcao, texto);
+    // sem a conversa em mãos, o destino confiável é a recepção do local a que
+    // o protocolo pertence: o endereço que veio na mensagem pode ser um
+    // identificador interno, e "parece telefone" não distingue — os dois têm
+    // 14 dígitos
+    // protocolo inexistente cai aqui antes de sabermos o local: nesse caso
+    // qualquer recepção cadastrada serve para dizer que o número não existe
+    const destino = recepcaoDe(localDoProtocolo) || [...numerosDaRecepcao()][0];
+    if (!destino) throw new Error('Sem WhatsApp de recepção para responder.');
+    return wa.enviar(destino, texto);
   };
 
   const achado = await agenda.buscarPorProtocolo(config.hospitais.map((h) => h.calendarId), comando.protocolo);
@@ -185,6 +191,7 @@ async function tratarRespostaRecepcao({ de, texto: corpoDaMensagem, propria = fa
   }
 
   const hospital = config.hospitais.find((h) => h.calendarId === achado.calendarId);
+  localDoProtocolo = hospital;
   const dadosDoEvento = lerEvento(achado.evento, hospital);
 
   if (comando.comando === 'CONFIRMAR') {
@@ -329,20 +336,18 @@ function lerEvento(evento, hospital) {
 /**
  * Para quem vai o aviso deste local.
  *
- * O padrão é o WhatsApp da recepção cadastrado em "Médico e recepção" — um
- * número só, que é o caso do consultório com uma secretária. Mas cada local
- * pode ter o seu: em hospital diferente, quem atende o telefone costuma ser
- * outra pessoa.
+ * O destino é sempre a recepção do próprio local. O médico atende em mais de
+ * um lugar, e quem atende o telefone é outra pessoa em cada um — um número
+ * único do consultório mandaria o pedido do hospital A para a secretária do
+ * hospital B.
  */
 function recepcaoDe(hospital) {
-  const doLocal = (hospital && hospital.whatsappRecepcao || '').replace(/\D/g, '');
-  return doLocal || config.whatsapp.recepcao;
+  return (hospital && hospital.whatsappRecepcao || '').replace(/\D/g, '');
 }
 
 /** Todos os números autorizados a mandar CONFIRMAR/REMARCAR. */
 function numerosDaRecepcao() {
   const numeros = new Set();
-  if (config.whatsapp.recepcao) numeros.add(config.whatsapp.recepcao);
   for (const h of config.todosHospitais) {
     const n = (h.whatsappRecepcao || '').replace(/\D/g, '');
     if (n) numeros.add(n);

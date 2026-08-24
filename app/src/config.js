@@ -49,6 +49,8 @@ const config = {
   get whatsapp() {
     return {
       driver: process.env.WA_DRIVER || 'log',
+      // mantido só para compatibilidade de leitura; o destino de verdade é o
+      // whatsappRecepcao de cada local (ver agendamento.recepcaoDe)
       recepcao: (dados.ler().recepcao || {}).whatsapp || '',
       avisarPaciente: process.env.AVISAR_PACIENTE !== 'false',
     };

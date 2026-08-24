@@ -10,6 +10,7 @@ const BASE = {
   expediente: [{ dias: [1, 3], inicio: '08:00', fim: '12:00' }],
   duracaoMin: 40, intervaloMin: 0, vagasPorHorario: 1,
   antecedenciaMinHoras: 24, janelaDias: 60,
+  whatsappRecepcao: '5562991234567',
 };
 
 beforeEach(() => {
@@ -116,15 +117,34 @@ test('formato antigo (dias/inicio/fim) vira uma faixa ao ser lido', () => {
   assert.equal(migrado.dias, undefined);
 });
 
-test('whatsapp da recepção precisa do formato com DDI', () => {
+test('o whatsapp do local precisa do formato com DDI', () => {
   const bons = ['5562991234567', '556232251234'];
   const ruins = ['62991234567', '991234567', '', 'abc'];
   for (const zap of bons) {
-    assert.equal(dados.validarGerais({ medico: { nome: 'X' }, recepcao: { whatsapp: zap } }).ok, true, zap);
+    const { ok } = dados.validarHospital({ ...BASE, whatsappRecepcao: zap }, { existentes: [] });
+    assert.equal(ok, true, zap);
   }
   for (const zap of ruins) {
-    assert.equal(dados.validarGerais({ medico: { nome: 'X' }, recepcao: { whatsapp: zap } }).ok, false, zap);
+    const { erros } = dados.validarHospital({ ...BASE, whatsappRecepcao: zap }, { existentes: [] });
+    assert.ok(erros.whatsappRecepcao, zap);
   }
+});
+
+test('local sem whatsapp não passa: o pedido não teria para onde ir', () => {
+  const { erros } = dados.validarHospital({ ...BASE, whatsappRecepcao: '' }, { existentes: [] });
+  assert.match(erros.whatsappRecepcao, /recebe os pedidos deste local/);
+});
+
+test('o número geral antigo desce para os locais que não têm o seu', () => {
+  // quem já usava o campo único de "Médico e recepção" não pode ficar com os
+  // locais mudos ao atualizar
+  const config = { recepcao: { whatsapp: '5562988887777' } };
+  assert.equal(dados.herdarRecepcao({ nome: 'A' }, config).whatsappRecepcao, '5562988887777');
+  // e não atropela quem já tinha número próprio
+  assert.equal(
+    dados.herdarRecepcao({ nome: 'B', whatsappRecepcao: '5511999990000' }, config).whatsappRecepcao,
+    '5511999990000'
+  );
 });
 
 test('escrita é atômica: não sobra arquivo temporário', () => {

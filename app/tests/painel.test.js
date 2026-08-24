@@ -59,6 +59,7 @@ const LOCAL = {
   expediente: [{ dias: [2, 4], inicio: '14:00', fim: '18:00' }],
   duracaoMin: 30, intervaloMin: 0, vagasPorHorario: 1,
   antecedenciaMinHoras: 12, janelaDias: 45,
+  whatsappRecepcao: '5562999998888',
 };
 
 test('sem senha o painel não abre', async () => {
@@ -171,18 +172,22 @@ test('teste de agenda repassa o veredito do Google', async () => {
   agendaFalsa.respostaTeste = { ok: true, papel: 'writer', nome: 'ok', mensagem: 'Conectado.' };
 });
 
-test('trocar o WhatsApp da recepção passa a valer para os avisos', async () => {
+test('trocar o WhatsApp de um local passa a valer para os avisos dele', async () => {
   const nav = await entrar(navegador());
-  await nav('/admin/api/config', {
-    method: 'PUT',
-    body: JSON.stringify({
-      medico: { nome: 'Dr. Felipe Oliveira' },
-      recepcao: { nome: 'Ana', whatsapp: '5562988887777' },
-      agendasDeBloqueio: [],
-    }),
+  const servico = require('../src/agendamento');
+
+  const { corpo } = await nav('/admin/api/hospitais', {
+    method: 'POST', body: JSON.stringify(LOCAL),
   });
-  delete require.cache[require.resolve('../src/config')];
-  assert.equal(require('../src/config').whatsapp.recepcao, '5562988887777');
+  const id = corpo.config.hospitais.find((h) => h.nome === LOCAL.nome).id;
+
+  await nav('/admin/api/hospitais/' + id, {
+    method: 'PUT',
+    body: JSON.stringify({ ...LOCAL, whatsappRecepcao: '5562988887777' }),
+  });
+
+  const config = require('../src/config');
+  assert.equal(servico.recepcaoDe(config.hospitalPorId(id)), '5562988887777');
 });
 
 test('sair encerra a sessão', async () => {
@@ -306,7 +311,9 @@ test('o painel mostra a situação do WhatsApp', async () => {
   assert.equal(corpo.driver, 'log');
   assert.equal(corpo.conectado, false);
   assert.equal(corpo.qr, null);
-  assert.equal(corpo.recepcao, '5562999998888');
+  // um destino por local, em vez de um número só do consultório
+  assert.ok(Array.isArray(corpo.destinos));
+  assert.ok(corpo.destinos.every((d) => d.nome && d.numero === '5562999998888'));
 });
 
 test('a mensagem de teste vai para o número da recepção', async () => {
@@ -318,7 +325,7 @@ test('a mensagem de teste vai para o número da recepção', async () => {
 
 test('sem número cadastrado, o teste avisa em vez de tentar enviar', async () => {
   const nav = await entrar(navegador());
-  dados.alterar((c) => { c.recepcao.whatsapp = ''; });
+  dados.alterar((c) => { c.hospitais.forEach((h) => { h.whatsappRecepcao = ''; }); });
   const r = await nav('/admin/api/whatsapp/testar', { method: 'POST' });
   assert.equal(r.status, 400);
   assert.match(r.corpo.erro, /Cadastre o WhatsApp/);
@@ -367,19 +374,19 @@ test('as outras rotas continuam com o limite pequeno', async () => {
   assert.equal(r.corpo.codigo, 'muito_grande');
 });
 
-test('local pode ter uma recepção própria; sem ela, vale a geral', async () => {
+test('cada local avisa a sua própria recepção', async () => {
   const nav = await entrar(navegador());
   const servico = require('../src/agendamento');
 
-  const geral = { ...LOCAL, whatsappRecepcao: '' };
-  const proprio = { ...LOCAL, nome: 'Hospital do Norte',
+  const sul = { ...LOCAL, whatsappRecepcao: '5562977776666' };
+  const norte = { ...LOCAL, nome: 'Hospital do Norte',
     calendarId: 'c_norte@group.calendar.google.com', whatsappRecepcao: '5562988887777' };
 
-  await nav('/admin/api/hospitais', { method: 'POST', body: JSON.stringify(geral) });
-  await nav('/admin/api/hospitais', { method: 'POST', body: JSON.stringify(proprio) });
+  await nav('/admin/api/hospitais', { method: 'POST', body: JSON.stringify(sul) });
+  await nav('/admin/api/hospitais', { method: 'POST', body: JSON.stringify(norte) });
 
   const config = require('../src/config');
-  assert.equal(servico.recepcaoDe(config.hospitalPorId('hospital-santa-clara')), '5562999998888');
+  assert.equal(servico.recepcaoDe(config.hospitalPorId('hospital-santa-clara')), '5562977776666');
   assert.equal(servico.recepcaoDe(config.hospitalPorId('hospital-do-norte')), '5562988887777');
 
   // os dois números podem confirmar

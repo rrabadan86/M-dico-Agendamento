@@ -197,7 +197,10 @@ router.get('/whatsapp', async (req, res) => {
   const estado = wa.estado ? wa.estado() : { driver: wa.nome, situacao: 'desconhecida' };
   res.json({
     ...estado,
-    recepcao: (dados.ler().recepcao || {}).whatsapp || '',
+    // um destino por local: é para a recepção de cada lugar que o pedido vai
+    destinos: (dados.ler().hospitais || [])
+      .filter((h) => h.ativo !== false)
+      .map((h) => ({ nome: h.nome, numero: (h.whatsappRecepcao || '').replace(/\D/g, '') })),
     qr: estado.temQr && wa.qrImagem ? await wa.qrImagem() : null,
   });
 });
@@ -236,15 +239,23 @@ router.post('/avisos-pendentes/reenviar', async (req, res) => {
   }
 });
 
-/** Manda uma mensagem de teste para a recepção, para provar que o caminho funciona. */
+/**
+ * Mensagem de teste para a recepção de um local, para provar que o caminho
+ * funciona. Sem local informado, usa o primeiro que estiver no ar.
+ */
 router.post('/whatsapp/testar', async (req, res) => {
-  const numero = (dados.ler().recepcao || {}).whatsapp;
+  const ativos = (dados.ler().hospitais || []).filter((h) => h.ativo !== false);
+  const alvo = req.body && req.body.local
+    ? ativos.find((h) => h.id === req.body.local)
+    : ativos[0];
+  const numero = (alvo && alvo.whatsappRecepcao || '').replace(/\D/g, '');
   if (!numero) {
-    return res.status(400).json({ erro: 'Cadastre o WhatsApp da recepção antes de testar.' });
+    return res.status(400).json({ erro: 'Cadastre o WhatsApp da recepção deste local antes de testar.' });
   }
   try {
-    await wa.enviar(numero, 'Teste do sistema de agendamento. Se você recebeu esta mensagem, está tudo certo.');
-    res.json({ ok: true, numero });
+    await wa.enviar(numero,
+      `Teste do sistema de agendamento (${alvo.nome}). Se você recebeu esta mensagem, está tudo certo.`);
+    res.json({ ok: true, numero, local: alvo.nome });
   } catch (e) {
     res.status(502).json({ erro: e.message });
   }

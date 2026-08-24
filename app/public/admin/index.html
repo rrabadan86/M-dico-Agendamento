@@ -107,9 +107,9 @@
       <div class="eyebrow">WhatsApp</div>
       <h2>Quem envia as mensagens</h2>
       <p class="muted small" style="margin-top:10px; max-width:62ch">
-        É por este número que a recepção recebe os pedidos de agendamento e responde
-        <strong>CONFIRMAR</strong>. Conecte o WhatsApp do consultório uma vez; a sessão
-        fica salva.
+        É por este número que o sistema envia. Cada local avisa a <strong>sua própria
+        recepção</strong> — o número fica no cadastro do local, em "Onde você atende".
+        Conecte o WhatsApp do consultório uma vez; a sessão fica salva.
       </p>
       <div id="zap" class="zap" style="margin-top:18px"><p class="carregando">Verificando…</p></div>
       <div id="pendentes" hidden></div>
@@ -136,11 +136,6 @@
           <div class="field" data-name="recepcao.nome">
             <label for="g-recnome">Nome de quem confirma</label>
             <input id="g-recnome" name="recepcao.nome" placeholder="Ana">
-          </div>
-          <div class="field full" data-name="recepcao.whatsapp">
-            <label for="g-zap">WhatsApp da recepção <span class="req">*</span></label>
-            <input id="g-zap" name="recepcao.whatsapp" inputmode="tel" placeholder="5562991234567">
-            <span class="help">55 + DDD + número, só dígitos. É para cá que vão os pedidos de agendamento.</span>
           </div>
         </div>
         <div class="formerr" id="erroGerais"></div>
@@ -269,11 +264,12 @@
           <span class="help">Aparece no site para o paciente. Não recebe mensagens.</span>
         </div>
         <div class="field full" data-name="whatsappRecepcao">
-          <label for="l-zap">WhatsApp que recebe os pedidos deste local</label>
+          <label for="l-zap">WhatsApp que recebe os pedidos deste local <span class="req">*</span></label>
           <input id="l-zap" name="whatsappRecepcao" inputmode="tel" placeholder="5562991234567">
           <span class="help">
-            Só preencha se este local tiver uma recepção diferente. Em branco, os pedidos vão
-            para o WhatsApp da recepção cadastrado em "Médico e recepção".
+            55 + DDD + número, só dígitos. É para cá que vão os pedidos deste local, e é
+            deste número que a recepção responde CONFIRMAR. Se a mesma pessoa atende dois
+            locais, repita o número nos dois.
           </span>
         </div>
       </div>

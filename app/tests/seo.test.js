@@ -215,3 +215,9 @@ test('o manual explica os indicadores novos e como marcar os links', async () =>
   assert.match(html, /\?de=instagram/, 'ensina a marcar o link, que é o que funciona no app');
   assert.match(html, /hachurad/, 'explica as colunas sem medição');
 });
+
+test('o manual diz que o WhatsApp é por local', async () => {
+  const { html } = await pegar('/manual');
+  assert.match(html, /recepção do local que o paciente escolheu/);
+  assert.match(html, /não fica aqui/, 'e que o campo global deixou de existir');
+});

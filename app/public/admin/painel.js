@@ -337,10 +337,13 @@
       '<div class="zap-topo">' +
         '<span class="zap-selo" data-situacao="' + escapar(z.situacao) + '">' +
           escapar(TEXTO_SITUACAO[z.situacao] || z.situacao) + '</span>' +
-        (z.recepcao
-          ? '<span class="zap-detalhe">os pedidos vão para ' + escapar(formatarZap(z.recepcao)) +
-            ' — o número em "Médico e recepção", não o telefone do local</span>'
-          : '<span class="zap-detalhe">falta cadastrar o WhatsApp da recepção aqui embaixo</span>') +
+        (z.destinos && z.destinos.length
+          ? '<span class="zap-detalhe">' + z.destinos.map(function (d) {
+              return escapar(d.nome) + ': ' + (d.numero
+                ? escapar(formatarZap(d.numero))
+                : '<b>sem número</b>');
+            }).join(' · ') + '</span>'
+          : '<span class="zap-detalhe">nenhum local no ar</span>') +
         (z.numero
           ? '<span class="zap-detalhe">enviando pelo ' + escapar(formatarZap(z.numero)) + '</span>'
           : '') +
@@ -497,7 +500,6 @@
     $('#g-crm').value = c.medico.crm || '';
     $('#g-esp').value = c.medico.especialidade || '';
     $('#g-recnome').value = (c.recepcao || {}).nome || '';
-    $('#g-zap').value = (c.recepcao || {}).whatsapp || '';
     $('#g-bloq').value = (c.agendasDeBloqueio || []).join('\n');
 
     var lista = $('#listaLocais');
@@ -534,7 +536,7 @@
             '<span>consulta de <b>' + h.duracaoMin + ' min</b></span>' +
             (h.intervaloMin ? '<span>intervalo de ' + h.intervaloMin + ' min</span>' : '') +
             ((h.vagasPorHorario || 1) > 1 ? '<span><b>' + h.vagasPorHorario + '</b> pacientes por horário</span>' : '') +
-            (h.whatsappRecepcao ? '<span>recepção própria: <b>' + escapar(h.whatsappRecepcao) + '</b></span>' : '') +
+            '<span>recepção: <b>' + escapar(h.whatsappRecepcao || 'sem número') + '</b></span>' +
             '<span>antecedência de <b>' + h.antecedenciaMinHoras + 'h</b></span>' +
             (h.endereco ? '<span>' + escapar(h.endereco) + '</span>' : '') +
           '</div>' +
@@ -817,7 +819,7 @@
         method: 'PUT',
         body: JSON.stringify({
           medico: { nome: $('#g-nome').value, crm: $('#g-crm').value, especialidade: $('#g-esp').value },
-          recepcao: { nome: $('#g-recnome').value, whatsapp: $('#g-zap').value },
+          recepcao: { nome: $('#g-recnome').value },
           agendasDeBloqueio: estado.config.agendasDeBloqueio || [],
         }),
       });

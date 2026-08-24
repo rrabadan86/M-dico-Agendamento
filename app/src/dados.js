@@ -39,7 +39,7 @@ function semente() {
     ativo: Boolean(process.env[`CAL_${h.id.toUpperCase()}`]),
   }));
 
-  return {
+  const inicial = {
     versao: 1,
     medico: {
       nome: process.env.MEDICO_NOME || '',
@@ -56,6 +56,10 @@ function semente() {
     pagina: pagina.padrao(),
     atualizadoEm: null,
   };
+  // o WA_RECEPCAO do .env descreve um consultório com uma recepção só; cada
+  // local começa com esse número e o médico ajusta os que forem diferentes
+  inicial.hospitais = inicial.hospitais.map((h) => herdarRecepcao(h, inicial));
+  return inicial;
 }
 
 // ------------------------------------------------------------- ler e gravar
@@ -69,6 +73,20 @@ function semente() {
  * Esta função converte o formato antigo ao ler, então instalação existente
  * continua funcionando sem ninguém precisar recadastrar nada.
  */
+/**
+ * Desce o número antigo, único do consultório, para os locais que não têm o seu.
+ *
+ * Antes existia um "WhatsApp da recepção" geral, e o do local era opcional.
+ * Virou por local, porque o médico atende em mais de um lugar e quem atende o
+ * telefone é outra pessoa em cada um. Sem esta herança, quem já usava o campo
+ * geral ficaria com os locais mudos na primeira atualização.
+ */
+function herdarRecepcao(h, config) {
+  const geral = ((config.recepcao || {}).whatsapp || '').replace(/\D/g, '');
+  if (h.whatsappRecepcao || !geral) return h;
+  return { ...h, whatsappRecepcao: geral };
+}
+
 function migrarHospital(h) {
   if (Array.isArray(h.expediente) && h.expediente.length) {
     return h.vagasPorHorario ? h : { ...h, vagasPorHorario: 1 };
@@ -88,7 +106,7 @@ function ler() {
     const stat = fs.statSync(ARQUIVO);
     if (cache && stat.mtimeMs === cacheMtime) return cache;
     const lido = JSON.parse(fs.readFileSync(ARQUIVO, 'utf8'));
-    lido.hospitais = (lido.hospitais || []).map(migrarHospital);
+    lido.hospitais = (lido.hospitais || []).map(migrarHospital).map((h) => herdarRecepcao(h, lido));
     lido.pagina = completarPagina(lido.pagina);
     cache = lido;
     cacheMtime = stat.mtimeMs;
@@ -208,7 +226,12 @@ function validarHospital(bruto = {}, { existentes = [], id = null } = {}) {
     erros.antecedenciaMinHoras = 'Antecedência entre 0 e 720 horas.';
   }
   if (!(h.janelaDias >= 1 && h.janelaDias <= 365)) erros.janelaDias = 'Janela entre 1 e 365 dias.';
-  if (h.whatsappRecepcao && !/^55\d{10,11}$/.test(h.whatsappRecepcao)) {
+  // Cada local avisa a sua própria recepção: em hospital diferente é outra
+  // pessoa que atende o telefone. Sem número aqui, o pedido feito para este
+  // local não teria para onde ir.
+  if (!h.whatsappRecepcao) {
+    erros.whatsappRecepcao = 'Informe o WhatsApp que recebe os pedidos deste local.';
+  } else if (!/^55\d{10,11}$/.test(h.whatsappRecepcao)) {
     erros.whatsappRecepcao = 'Use 55 + DDD + número, só dígitos. Ex.: 5562991234567';
   }
 
@@ -286,20 +309,16 @@ function validarGerais(bruto = {}) {
       crm: texto(bruto.medico?.crm, 40),
       especialidade: texto(bruto.medico?.especialidade, 60),
     },
+    // `whatsapp` não entra mais aqui: quem recebe os pedidos é a recepção de
+    // cada local, não um número único do consultório
     recepcao: {
       nome: texto(bruto.recepcao?.nome, 60) || 'Recepção',
-      whatsapp: texto(bruto.recepcao?.whatsapp, 20).replace(/\D/g, ''),
     },
     agendasDeBloqueio: (Array.isArray(bruto.agendasDeBloqueio) ? bruto.agendasDeBloqueio : [])
       .map((s) => texto(s, 200).toLowerCase()).filter(Boolean),
   };
 
   if (!dados.medico.nome) erros['medico.nome'] = 'Informe o nome do médico.';
-  const zap = dados.recepcao.whatsapp;
-  if (!zap) erros['recepcao.whatsapp'] = 'Sem este número ninguém recebe os pedidos de agendamento.';
-  else if (!/^55\d{10,11}$/.test(zap)) {
-    erros['recepcao.whatsapp'] = 'Use o formato 55 + DDD + número, só dígitos. Ex.: 5562991234567';
-  }
 
   return { ok: Object.keys(erros).length === 0, erros, dados };
 }
@@ -387,6 +406,6 @@ function validarPagina(bruto = {}) {
 
 module.exports = {
   ler, gravar, alterar, validarHospital, validarGerais, validarPagina, novoId,
-  ARQUIVO, semente, migrarHospital, normalizarExpediente, diasAtendidos,
+  ARQUIVO, semente, migrarHospital, herdarRecepcao, normalizarExpediente, diasAtendidos,
   validarFaixas, completarPagina, DIA_NOME,
 };
