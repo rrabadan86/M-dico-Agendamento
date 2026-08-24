@@ -172,3 +172,37 @@ test('o nome no topo fica num bloco que pode encolher', async () => {
   const { html } = await pegar('/');
   assert.match(html, /<div class="brandtxt"><b>Dr\. Felipe Márcio Araújo Oliveira<\/b>/);
 });
+
+test('o manual descreve as duas telas e não pede senha', async () => {
+  const { status, html } = await pegar('/manual');
+  assert.equal(status, 200);
+  assert.match(html, /A página do paciente/);
+  assert.match(html, /O painel do médico/);
+  assert.match(html, /CONFIRMAR/);
+  assert.match(html, /REMARCAR/);
+});
+
+test('o manual não concorre com o site na busca', async () => {
+  const { html } = await pegar('/manual');
+  assert.match(html, /<meta name="robots" content="noindex/);
+
+  const mapa = await pegar('/sitemap.xml');
+  assert.ok(!mapa.html.includes('/manual'), 'fora do sitemap também');
+});
+
+test('o manual mostra os locais que estão no ar, e nenhum contato', async () => {
+  dados.alterar((c) => {
+    c.hospitais[0].nome = 'INGOH';
+    c.recepcao = { ...(c.recepcao || {}), whatsapp: '5562988887777' };
+  });
+  const { html } = await pegar('/manual');
+  assert.match(html, /INGOH/);
+  // a página é pública: número da recepção não pode vazar nela
+  assert.ok(!html.includes('5562988887777'));
+});
+
+test('o manual acompanha o nome que está configurado', async () => {
+  dados.alterar((c) => { c.medico.nome = 'Dr. Felipe Márcio Araújo Oliveira'; });
+  const { html } = await pegar('/manual');
+  assert.match(html, /Dr\. Felipe Márcio Araújo Oliveira/);
+});

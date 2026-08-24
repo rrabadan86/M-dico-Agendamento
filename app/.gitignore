@@ -5,3 +5,7 @@ credenciais.json
 wwebjs_auth/
 .wwebjs_cache/
 *.log
+
+# dados de execução: contagem local, não é código
+dados/metricas.json
+dados/config.json

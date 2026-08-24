@@ -23,6 +23,7 @@ const servico = require('./agendamento');
 const auth = require('./auth');
 const rotasAdmin = require('./rotas-admin');
 const metricas = require('./metricas');
+const manual = require('./manual');
 const render = require('./render');
 const dados = require('./dados');
 
@@ -59,6 +60,17 @@ app.get('/', (req, res) => {
   res.set('Cache-Control', 'public, max-age=0, must-revalidate');
   res.type('html').send(render.paginaCompleta({
     pagina: c.pagina,
+    medico: c.medico,
+    hospitais: config.hospitais,
+    url: enderecoDoSite(req),
+  }));
+});
+
+// manual de uso, para o médico e a recepção
+app.get('/manual', (req, res) => {
+  const c = dados.ler();
+  res.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  res.type('html').send(manual.paginaManual({
     medico: c.medico,
     hospitais: config.hospitais,
     url: enderecoDoSite(req),
