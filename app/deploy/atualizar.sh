@@ -13,7 +13,7 @@ set -euo pipefail
 BRANCH="${1:-main}"
 FONTE="$HOME/agendamento-src"
 DESTINO="$HOME/agendamento-onco/app"
-REPO="https://github.com/rrabadan86/SF-Chat_Experimental-Mensagens.git"
+REPO="https://github.com/rrabadan86/M-dico-Agendamento.git"
 
 [ -d "$DESTINO" ] || { echo "não achei $DESTINO"; exit 1; }
 
@@ -42,7 +42,7 @@ rsync -a --delete \
   --exclude '.wwebjs_cache/' \
   --exclude 'dados/' \
   --exclude 'logs/' \
-  "$FONTE/Oncologia/app/" "$DESTINO/"
+  "$FONTE/app/" "$DESTINO/"
 
 cd "$DESTINO"
 npm ci --omit=dev

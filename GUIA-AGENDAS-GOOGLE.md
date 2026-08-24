@@ -24,7 +24,7 @@ que o médico compartilhar explicitamente com ela.
    - Pode pular as duas etapas opcionais de permissão e clicar em **Concluir**.
 4. Clique na conta que acabou de aparecer → aba **Chaves** →
    **Adicionar chave → Criar nova chave → JSON**. O arquivo baixa sozinho.
-5. Renomeie esse arquivo para `credenciais.json` e coloque em `Oncologia/app/`.
+5. Renomeie esse arquivo para `credenciais.json` e coloque em `app/`.
 6. Copie o **e-mail da conta de serviço**. No nosso projeto ele é:
 
    ```
@@ -107,7 +107,7 @@ Para **cada uma** das duas agendas:
 
 ## Parte 3 — Juntar as pontas (você, 2 min)
 
-No arquivo `Oncologia/app/.env`:
+No arquivo `app/.env`:
 
 ```
 CAL_H1=cole-aqui-o-id-do-hospital-1@group.calendar.google.com
@@ -119,7 +119,7 @@ CAL_BLOQUEIOS=      # id da agenda pessoal, se ele topou o passo 16
 Testar:
 
 ```bash
-cd Oncologia/app
+cd app
 npm install
 npm start
 ```

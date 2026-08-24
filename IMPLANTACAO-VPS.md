@@ -75,14 +75,21 @@ node -e "console.log(require('puppeteer').executablePath())"
 
 ## 2. Subir o código
 
-```bash
-mkdir -p ~/agendamento-onco && cd ~/agendamento-onco
-# suba o conteúdo da pasta Agendamento_Consulta para cá (scp, git clone, o que preferir)
+O código vem do GitHub. O clone fica **separado** do que roda: assim uma
+atualização nunca encosta na configuração do consultório.
 
-cd app
+```bash
+git clone https://github.com/rrabadan86/M-dico-Agendamento.git ~/agendamento-src
+
+mkdir -p ~/agendamento-onco
+cp -a ~/agendamento-src/app ~/agendamento-onco/app
+
+cd ~/agendamento-onco/app
 npm ci --omit=dev
 mkdir -p logs dados
 ```
+
+Das próximas vezes, atualizar é um comando só — ver *Atualizar o código*, no fim.
 
 Envie o `credenciais.json` do Google **por SCP**, nunca por WhatsApp ou e-mail:
 
@@ -306,12 +313,23 @@ pm2 monit                               # memória e CPU
 **Atualizar o código:**
 
 ```bash
-cd ~/agendamento-onco/app
-# suba os arquivos novos
-npm ci --omit=dev
-npm test
-pm2 restart agendamento-onco
+~/agendamento-onco/app/deploy/atualizar.sh
 ```
+
+O script busca o código no GitHub, faz backup do `config.json`, espelha só a
+pasta `app/` com `rsync`, roda os testes e reinicia o pm2. À mão, se preferir:
+
+```bash
+cd ~/agendamento-src && git pull
+rsync -a --delete \
+  --exclude 'node_modules/' --exclude '.env' --exclude 'credenciais.json' \
+  --exclude 'wwebjs_auth/' --exclude '.wwebjs_cache/' --exclude 'dados/' --exclude 'logs/' \
+  ~/agendamento-src/app/ ~/agendamento-onco/app/
+cd ~/agendamento-onco/app && npm test ; pm2 restart agendamento-onco
+```
+
+Os `--exclude` são o ponto: sem eles a atualização apaga a configuração do
+consultório e derruba a sessão do WhatsApp.
 
 `dados/config.json`, `.env`, `credenciais.json` e `wwebjs_auth/` **não** são
 tocados por uma atualização — é justamente por isso que estão fora do Git.
