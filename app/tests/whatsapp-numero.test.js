@@ -140,3 +140,28 @@ test('verificar reconhece o próprio número da sessão', async () => {
   assert.match(r.mensagem, /próprio número/);
   clienteFalso.info = null;
 });
+
+test('o sistema não obedece à própria resposta "não entendi"', () => {
+  // Este é o laço que rodou em produção: a resposta "não entendi" contém
+  // "CONFIRMAR PA-x", e o protocolo a lê como comando de confirmar.
+  const naoEntendi = 'Recebi PA-2026-6029, mas não entendi o que fazer. '
+    + 'Responda *CONFIRMAR PA-2026-6029* ou *REMARCAR PA-2026-6029*.';
+  assert.equal(require('../src/protocolo').interpretar(naoEntendi).comando, 'CONFIRMAR',
+    'o texto de fato parece um comando — por isso a barreira precisa existir');
+
+  driver._lembrarTexto(naoEntendi);
+
+  // eco sem id ainda resolvido: é o caso que o rastreio por id não pega
+  assert.equal(driver._nossa({ fromMe: true, body: naoEntendi, id: {} }), true);
+  // a mesma frase vinda de fora não é nossa
+  assert.equal(driver._nossa({ fromMe: false, body: naoEntendi, id: {} }), false);
+  // e um comando de verdade da recepção passa
+  assert.equal(driver._nossa({ fromMe: true, body: 'CONFIRMAR PA-2026-6029', id: {} }), false);
+});
+
+test('espaço em volta não engana a barreira', () => {
+  driver._lembrarTexto('Feito. PA-2026-0001 confirmado na agenda do INGOH.');
+  assert.equal(driver._nossa({
+    fromMe: true, body: '  Feito. PA-2026-0001 confirmado na agenda do INGOH.  ', id: {},
+  }), true);
+});

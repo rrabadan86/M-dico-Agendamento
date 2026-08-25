@@ -147,9 +147,39 @@ function esperaEmMinutos(evento, agora = new Date()) {
   return Math.max(0, Math.round((agora.getTime() - criado) / 60000));
 }
 
-async function tratarRespostaRecepcao({ de, texto: corpoDaMensagem, propria = false, responder = null }) {
+/**
+ * Disjuntor: quantas vezes cada protocolo foi comandado nos últimos minutos.
+ *
+ * Um laço aqui não é incômodo, é destrutivo — manda mensagem sem parar e pode
+ * custar a conta de WhatsApp do consultório. Já aconteceu: a resposta "não
+ * entendi" contém "CONFIRMAR PA-0000-0000" e o sistema obedecia a si mesmo.
+ * A causa foi corrigida; isto existe para que a próxima causa, qualquer que
+ * seja, pare sozinha na quarta volta em vez de rodar a noite toda.
+ */
+const JANELA_MS = 60000;
+const LIMITE_POR_PROTOCOLO = 3;
+const recentes = new Map();
+
+function passouDoLimite(numero, agora) {
+  const t0 = agora.getTime();
+  for (const [chave, reg] of recentes) {
+    if (t0 - reg.desde > JANELA_MS) recentes.delete(chave);
+  }
+  const reg = recentes.get(numero) || { desde: t0, vezes: 0 };
+  reg.vezes += 1;
+  recentes.set(numero, reg);
+  return reg.vezes > LIMITE_POR_PROTOCOLO;
+}
+
+async function tratarRespostaRecepcao({ de, texto: corpoDaMensagem, propria = false, responder = null }, agora = new Date()) {
   const comando = protocolo.interpretar(corpoDaMensagem);
   if (!comando) return null;                       // conversa normal, ignora
+
+  if (passouDoLimite(comando.protocolo, agora)) {
+    console.error(`[wa] ${comando.protocolo} recebeu comandos demais em pouco tempo. `
+      + 'Ignorando para não entrar em laço — verifique as mensagens do WhatsApp.');
+    return { comando: comando.comando, protocolo: comando.protocolo, resultado: 'excesso' };
+  }
 
   /*
    * Quem pode comandar: os números de recepção cadastrados, e também o próprio
@@ -385,7 +415,11 @@ async function avisarPaciente(dados, hospital, tipo) {
   return wa.enviar(dados.telefone, texto);
 }
 
+/** Só para teste: esquece a contagem do disjuntor. */
+function _limparDisjuntor() { recentes.clear(); }
+
 module.exports = {
+  _limparDisjuntor,
   horariosDisponiveis, agendar, tratarRespostaRecepcao, cobrarPendentes, levantarOcupacao,
   avisosPendentes, reenviarAvisos, recepcaoDe, numerosDaRecepcao,
   ErroDeAgendamento, descricaoDoEvento, lerEvento, resumoHospital,

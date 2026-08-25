@@ -396,3 +396,16 @@ test('sem conversa para responder, cai no número da recepção', async () => {
   const paraRecepcao = waFalso.enviadas.find((m) => /confirmado na agenda/.test(m.texto));
   assert.equal(paraRecepcao.numero, RECEPCAO);
 });
+
+test('o disjuntor corta comandos repetidos no mesmo protocolo', async () => {
+  servico._limparDisjuntor();
+  const agora = new Date('2026-08-25T15:00:00Z');
+  const resultados = [];
+  for (let i = 0; i < 5; i += 1) {
+    resultados.push(await servico.tratarRespostaRecepcao(
+      { de: '5562999998888', texto: 'CONFIRMAR PA-2026-0001' }, agora
+    ));
+  }
+  assert.equal(resultados[3].resultado, 'excesso', '4ª volta já é cortada');
+  assert.equal(resultados[4].resultado, 'excesso');
+});

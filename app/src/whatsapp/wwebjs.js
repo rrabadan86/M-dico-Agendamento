@@ -42,6 +42,39 @@ function lembrarEnviada(id) {
   }
 }
 
+/**
+ * O texto do que acabamos de mandar, para não obedecermos a nós mesmos.
+ *
+ * Guardar só o id não basta: quando o aparelho da recepção é o mesmo da
+ * sessão, o WhatsApp devolve a nossa própria mensagem por `message_create`, e
+ * esse eco pode chegar antes de o envio resolver e nos dar o id. Por isso o
+ * texto é anotado ANTES de enviar.
+ *
+ * Sem isso o sistema entra em laço: a resposta "não entendi" contém
+ * "CONFIRMAR PA-0000-0000", ela mesma é lida como um comando de confirmar, e
+ * cada volta gera outra mensagem — para sempre.
+ */
+const textosNossos = new Set();
+function lembrarTexto(texto) {
+  const chave = String(texto || '').trim();
+  if (!chave) return;
+  textosNossos.add(chave);
+  if (textosNossos.size > 200) {
+    textosNossos.delete(textosNossos.values().next().value);
+  }
+}
+const ehTextoNosso = (texto) => textosNossos.has(String(texto || '').trim());
+
+/**
+ * A mensagem saiu de nós? Pelo id, ou pelo texto quando o eco chega primeiro.
+ * Separado numa função para poder ser testado sem WhatsApp nenhum.
+ */
+function nossa(msg) {
+  if (!msg || !msg.fromMe) return false;
+  const id = msg.id && msg.id._serialized;
+  return enviadasPorNos.has(id) || ehTextoNosso(msg.body);
+}
+
 const estado = {
   situacao: 'desligado',   // desligado | iniciando | qr | conectado | erro
   qr: null,                // texto do QR, quando situacao === 'qr'
@@ -99,7 +132,7 @@ function montar() {
   // próprio aparelho conectado. 'message' sozinho perderia o segundo caso.
   cliente.on('message_create', async (msg) => {
     const id = msg.id && msg.id._serialized;
-    if (msg.fromMe && enviadasPorNos.has(id)) return;    // é o nosso próprio aviso
+    if (nossa(msg)) return;                          // não obedecemos a nós mesmos
 
     // O endereço da conversa nem sempre é um telefone: em conta migrada vem um
     // identificador interno. O contato traz o número de verdade, quando existe.
@@ -112,7 +145,13 @@ function montar() {
     }
     if (!de) de = String(msg.fromMe ? (msg.to || '') : (msg.from || '')).replace(/\D/g, '');
     for (const cb of escutas) {
-      try { await cb({ de, texto: msg.body, propria: Boolean(msg.fromMe), responder: (t) => msg.reply(t) }); }
+      const responder = async (texto) => {
+        lembrarTexto(texto);                    // antes de enviar: o eco é rápido
+        const enviada = await msg.reply(texto);
+        lembrarEnviada(enviada && enviada.id && enviada.id._serialized);
+        return enviada;
+      };
+      try { await cb({ de, texto: msg.body, propria: Boolean(msg.fromMe), responder }); }
       catch (e) { console.error('[wa] erro tratando mensagem:', e.message); }
     }
   });
@@ -329,6 +368,7 @@ async function enviar(numero, texto) {
     if (!cliente) await iniciar();
     await esperarPronto();
   }
+  lembrarTexto(texto);                          // antes de enviar: o eco é rápido
   const enviada = await cliente.sendMessage(await enderecoDe(numero), texto);
   lembrarEnviada(enviada && enviada.id && enviada.id._serialized);
   return enviada;
@@ -337,6 +377,8 @@ async function enviar(numero, texto) {
 module.exports = {
   nome: 'wwebjs',
   iniciar, enviar, conectar, desconectar, qrImagem, enderecoDe, verificar,
+  /** só para teste: a barreira que impede o sistema de obedecer a si mesmo */
+  _nossa: nossa, _lembrarTexto: lembrarTexto,
   /** só para teste: troca o cliente do WhatsApp por um de mentira */
   _usarCliente(falso) { cliente = falso; anotar('conectado'); },
   estado: estadoAtual,
