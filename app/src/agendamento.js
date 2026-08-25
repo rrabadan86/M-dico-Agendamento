@@ -236,8 +236,11 @@ async function avisosPendentes(agora = new Date()) {
       new Date(agora.getTime() + 180 * 86400000).toISOString()
     );
     for (const evento of eventos) {
+      // `erroDoAviso` e não `motivo`: motivo é o que o paciente escreveu, e
+      // sobrescrevê-lo fazia a recepção receber a falha de envio no lugar da
+      // queixa do paciente
       lista.push({ ...lerEvento(evento, hospital), eventoId: evento.id, calendarId: hospital.calendarId,
-        motivo: evento.extendedProperties?.private?.avisoErro || '' });
+        erroDoAviso: evento.extendedProperties?.private?.avisoErro || '' });
     }
   }
   return lista;
@@ -326,7 +329,8 @@ function lerEvento(evento, hospital) {
     tipo: campos.tipo || '',
     pagamento: campos.pagamento || '',
     motivo: campos.motivo || '',
-    nascimento: campos.nascimento || '',
+    // a descrição guarda dd/mm/aaaa; o resto do sistema trabalha em ISO
+    nascimento: t.deBrasileira(campos.nascimento || ''),
     data: inicio.slice(0, 10),
     hora: inicio.slice(11, 16),
     hospital: hospital?.id,

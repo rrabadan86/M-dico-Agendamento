@@ -433,7 +433,7 @@
       'Confira se o WhatsApp está conectado e reenvie.</p>' +
       '<ul>' + lista.map(function (p) {
         return '<li><strong>' + escapar(p.nome || '(sem nome)') + '</strong> — ' +
-          escapar(p.protocolo) + (p.motivo ? ' · <span class="muted">' + escapar(p.motivo) + '</span>' : '') +
+          escapar(p.protocolo) + (p.erroDoAviso ? ' · <span class="muted">' + escapar(p.erroDoAviso) + '</span>' : '') +
           '</li>';
       }).join('') + '</ul>' +
       '<div class="acoes">' +

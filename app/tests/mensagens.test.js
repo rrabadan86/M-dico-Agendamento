@@ -2,6 +2,7 @@ require('./ambiente');
 const { test } = require('node:test');
 const assert = require('node:assert');
 const m = require('../src/mensagens');
+const t = require('../src/tempo');
 
 const HOSPITAL = { id: 'h1', nome: 'Hospital 1', agenda: 'Agenda A', endereco: 'a definir' };
 const AG = {
@@ -13,7 +14,7 @@ const AG = {
 
 test('mensagem da recepção traz tudo que ela precisa para ligar', () => {
   const texto = m.paraRecepcao(AG, HOSPITAL, '2026-08-22');
-  for (const trecho of ['PA-2026-4817', 'Hospital 1', 'seg, 24/08', '08:40',
+  for (const trecho of ['PA-2026-4817', 'Hospital 1', 'Segunda, 24 de agosto', '08:40',
     'Maria Aparecida de Souza', '64 anos', '5562991234567', 'Segunda opinião',
     'carteirinha 0123', 'Dra. Helena Prado', 'CONFIRMAR PA-2026-4817']) {
     assert.ok(texto.includes(trecho), `faltou "${trecho}" na mensagem`);
@@ -39,4 +40,31 @@ test('confirmação do paciente é escrita para o paciente, não para o sistema'
 test('primeiro nome lida com espaço sobrando', () => {
   assert.equal(m.primeiroNome('  Maria  Aparecida '), 'Maria');
   assert.equal(m.primeiroNome(''), '');
+});
+
+test('nascimento lido do evento volta legível, com a idade', () => {
+  // a descrição do evento guarda dd/mm/aaaa; lido de volta como se fosse ISO,
+  // virava "undefined/undefined/09/01/1986" e a idade sumia
+  const texto = m.paraRecepcao(
+    { ...AG, nascimento: t.deBrasileira('09/01/1986') },
+    HOSPITAL, '2026-08-25'
+  );
+  assert.match(texto, /\*Nascimento:\* 09\/01\/1986 \(40 anos\)/);
+  assert.ok(!texto.includes('undefined'));
+});
+
+test('a data da consulta abre a mensagem, em linha própria', () => {
+  const texto = m.paraRecepcao({ ...AG, data: '2026-08-27', hora: '12:40' },
+    HOSPITAL, '2026-08-25');
+  const linhas = texto.split('\n');
+  assert.match(linhas[2], /^🗓 \*Quinta, 27 de agosto · 12:40\*$/);
+  assert.match(linhas[3], /^📍 /);
+});
+
+test('o ano só aparece quando não é o corrente', () => {
+  const esteAno = m.paraRecepcao({ ...AG, data: '2026-08-27' }, HOSPITAL, '2026-08-25');
+  assert.ok(!/de 2026 ·/.test(esteAno), 'sem ano na agenda do próprio ano');
+
+  const outro = m.paraRecepcao({ ...AG, data: '2027-01-14' }, HOSPITAL, '2026-12-20');
+  assert.match(outro, /14 de janeiro de 2027 ·/);
 });

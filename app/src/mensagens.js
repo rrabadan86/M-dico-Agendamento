@@ -12,10 +12,31 @@ function linhaIdade(nascimento, hojeISO) {
 }
 
 /** Vai para a recepcionista assim que o paciente envia o formulário. */
+const DIAS_LONGOS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+/**
+ * "Quinta, 27 de agosto · 12:40" — a linha que a recepção lê primeiro.
+ *
+ * O ano só entra quando não é o corrente: numa agenda que abre 60 dias à
+ * frente, repetir "de 2026" em toda mensagem é ruído, mas escondê-lo numa
+ * consulta de janeiro marcada em dezembro seria erro caro.
+ */
+function quandoPorExtenso(dataISO, hora, hojeISO) {
+  const [a, m, d] = String(dataISO).split('-');
+  const dia = DIAS_LONGOS[t.diaDaSemana(dataISO)];
+  const ano = a === String(hojeISO).slice(0, 4) ? '' : ` de ${a}`;
+  return `${dia}, ${Number(d)} de ${t.MESES[Number(m) - 1]}${ano} · ${hora}`;
+}
+
 function paraRecepcao(ag, hospital, hojeISO = t.hoje()) {
   const l = [];
   l.push(`*NOVO PRÉ-AGENDAMENTO* ${ag.protocolo}`);
-  l.push(`${hospital.nome} · ${t.curta(ag.data)} às ${ag.hora}`);
+  l.push('');
+  // A data em linha própria e em negrito: é o que a recepção precisa ler
+  // primeiro para saber se dá para encaixar, e antes ficava espremida entre
+  // o nome do hospital e o protocolo.
+  l.push(`🗓 *${quandoPorExtenso(ag.data, ag.hora, hojeISO)}*`);
+  l.push(`📍 ${hospital.nome}`);
   if (ag.vagasNoHorario > 1) {
     l.push(`_${ag.posicaoNoHorario}ª de ${ag.vagasNoHorario} consultas neste horário_`);
   }
