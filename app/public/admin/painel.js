@@ -202,6 +202,68 @@
       quadros(m);
 
     desenharLinks();          // os links mostram a contagem do mesmo período
+    ligarDica();
+  }
+
+  var DIA_CURTO = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+  /**
+   * A dica que aparece ao passar o mouse (ou tocar) numa coluna.
+   *
+   * Balão próprio em vez do `title` do navegador: o nativo demora quase um
+   * segundo para aparecer, não quebra linha de forma confiável e não existe no
+   * celular — e é justamente a quebra de linha que permite listar os canais.
+   */
+  function ligarDica() {
+    var caixa = $('#dicaGrafico');
+    var grafico = caixa && caixa.parentElement;
+    if (!caixa) return;
+
+    var mostrar = function (barra) {
+      var d = (estado.metricas.dias || [])[Number(barra.getAttribute('data-i'))];
+      if (!d) return;
+      var data = new Date(d.dia + 'T12:00:00Z');
+      var titulo = DIA_CURTO[data.getUTCDay()] + ', ' + d.dia.slice(8) + '/' + d.dia.slice(5, 7);
+
+      var corpo;
+      if (!d.medido) {
+        corpo = '<span class="dica-vazio">antes de a contagem começar</span>';
+      } else if (!d.visitas) {
+        corpo = '<span class="dica-vazio">ninguém entrou</span>';
+      } else {
+        var canais = Object.keys(d.origens || {})
+          .sort(function (a, b) { return d.origens[b] - d.origens[a]; })
+          .map(function (c) {
+            return '<span><i>' + escapar(c) + '</i>' + d.origens[c] + '</span>';
+          }).join('');
+        corpo = '<div class="dica-numeros">' +
+            '<span><i>pessoas</i>' + d.unicos + '</span>' +
+            '<span><i>visitas</i>' + d.visitas + '</span>' +
+            '<span><i>viram horários</i>' + d.interessados + '</span>' +
+            '<span><i>agendaram</i>' + d.agendamentos + '</span>' +
+          '</div>' +
+          (canais ? '<div class="dica-canais">' + canais + '</div>' : '');
+      }
+
+      caixa.innerHTML = '<b>' + escapar(titulo) + '</b>' + corpo;
+      caixa.hidden = false;
+
+      // encosta na borda em vez de vazar para fora do bloco
+      var largura = caixa.offsetWidth;
+      var meio = barra.offsetLeft + (barra.offsetWidth / 2) - (largura / 2);
+      var limite = grafico.clientWidth - largura;
+      caixa.style.left = Math.max(0, Math.min(meio, limite)) + 'px';
+    };
+
+    var esconder = function () { caixa.hidden = true; };
+
+    $$('#metricas .barra').forEach(function (barra) {
+      barra.addEventListener('mouseenter', function () { mostrar(barra); });
+      barra.addEventListener('focus', function () { mostrar(barra); });
+      barra.addEventListener('click', function () { mostrar(barra); });   // celular
+      barra.addEventListener('blur', esconder);
+    });
+    $('#metricas .barras').addEventListener('mouseleave', esconder);
   }
 
   /** Do pedido à confirmação, com o tempo que o paciente esperou. */
@@ -293,21 +355,21 @@
     }
 
     return '<div class="grafico">' +
+      '<div class="dica" id="dicaGrafico" hidden></div>' +
       '<div class="barras" role="img" aria-label="visitantes e agendamentos por dia">' +
-      dias.map(function (d) {
+      dias.map(function (d, i) {
         var dia = d.dia.slice(8) + '/' + d.dia.slice(5, 7);
 
         // Dia anterior ao início da contagem não é "zero pessoas", é "não
         // sabemos". Desenhar barra zerada aqui faria a tela afirmar que
         // ninguém entrou num período em que ninguém estava medindo.
         if (!d.medido) {
-          return '<div class="barra nao-medido" title="' + dia + ': antes de a contagem começar"></div>';
+          return '<div class="barra nao-medido" data-i="' + i + '" tabindex="0"></div>';
         }
 
         var alturaPessoas = Math.round((d.unicos / teto) * 100);
         var alturaAgenda = d.unicos ? Math.round((d.agendamentos / teto) * 100) : 0;
-        return '<div class="barra" title="' + dia + ': ' + d.unicos + ' pessoa(s), ' +
-            d.agendamentos + ' agendamento(s)">' +
+        return '<div class="barra" data-i="' + i + '" tabindex="0">' +
           '<div class="col">' +
             '<div class="parte pessoas" style="height:' + alturaPessoas + '%"></div>' +
             '<div class="parte agenda" style="height:' + alturaAgenda + '%"></div>' +

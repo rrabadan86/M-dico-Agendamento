@@ -434,3 +434,23 @@
   .link-div code{ grid-column:1 / -1; }
   .link-conta{ text-align:left; }
 }
+
+/* ---- dica do gráfico ---- */
+.grafico{ position:relative; }
+.dica{
+  position:absolute; bottom:100%; margin-bottom:8px; z-index:5;
+  min-width:190px; max-width:280px;
+  background:var(--surface); border:1px solid var(--line-strong);
+  border-radius:var(--radius-sm); box-shadow:var(--shadow);
+  padding:11px 13px; font-size:.82rem; pointer-events:none;
+}
+.dica b{ display:block; font-size:.88rem; margin-bottom:8px; }
+.dica-numeros, .dica-canais{ display:grid; gap:3px; }
+.dica-canais{
+  margin-top:8px; padding-top:8px; border-top:1px solid var(--line);
+}
+.dica span{ display:flex; justify-content:space-between; gap:14px; font-variant-numeric:tabular-nums; }
+.dica i{ font-style:normal; color:var(--ink-3); }
+.dica-vazio{ color:var(--ink-3); }
+.barra{ cursor:default; }
+.barra:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
