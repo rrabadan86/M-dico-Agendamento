@@ -221,3 +221,11 @@ test('o manual diz que o WhatsApp é por local', async () => {
   assert.match(html, /recepção do local que o paciente escolheu/);
   assert.match(html, /não fica aqui/, 'e que o campo global deixou de existir');
 });
+
+test('o manual lista os canais de divulgação com o endereço pronto', async () => {
+  const { html } = await pegar('/manual');
+  for (const rotulo of ['?de=whatsapp', '?de=indicacao', '?de=propaganda']) {
+    assert.ok(html.includes(rotulo), `faltou ${rotulo}`);
+  }
+  assert.match(html, /trocar os links já\s+publicados/, 'avisa que link antigo não conta');
+});

@@ -403,3 +403,22 @@
 .fatia-barra{ height:6px; background:var(--surface-3); border-radius:99px; overflow:hidden; }
 .fatia-barra i{ display:block; height:100%; background:var(--brand); border-radius:99px; }
 .fatia b{ text-align:right; font-size:.86rem; }
+
+/* ---- links de divulgação ---- */
+.links-div{ display:grid; gap:10px; margin-top:20px; }
+.link-div{
+  display:grid; grid-template-columns:minmax(150px,1fr) minmax(0,2fr) auto;
+  gap:14px; align-items:center;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:12px 14px;
+}
+.link-div b{ display:block; font-size:.94rem; }
+.link-div span{ display:block; }
+.link-div code{
+  font-family:"IBM Plex Mono",monospace; font-size:.78rem; color:var(--ink-2);
+  overflow-wrap:anywhere;
+}
+@media (max-width:760px){
+  .link-div{ grid-template-columns:1fr; gap:8px; }
+  .link-div button{ justify-self:start; }
+}

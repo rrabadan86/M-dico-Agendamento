@@ -94,6 +94,7 @@
     $('#telaEntrar').hidden = true;
     $('#telaPainel').hidden = false;
     desenhar();
+    desenharLinks();
     verZap();
     verMetricas();
     if (window.EditorConteudo) {
@@ -102,6 +103,38 @@
           '<p class="erro-slot">Não consegui carregar o conteúdo do site: ' + escapar(e.message) + '</p>';
       });
     }
+  }
+
+  /* ------------------------------------------------- links de divulgação */
+
+  var CANAIS_DIVULGACAO = [
+    { rotulo: 'whatsapp', nome: 'WhatsApp', onde: 'mensagens que você manda para pacientes' },
+    { rotulo: 'indicacao', nome: 'Indicação', onde: 'colegas que encaminham pacientes' },
+    { rotulo: 'propaganda', nome: 'Propaganda', onde: 'anúncios pagos, panfleto, outdoor' },
+    { rotulo: 'instagram', nome: 'Instagram', onde: 'link da bio' },
+  ];
+
+  function desenharLinks() {
+    var base = location.origin + '/?de=';
+    $('#linksDivulgacao').innerHTML = CANAIS_DIVULGACAO.map(function (c) {
+      var url = base + c.rotulo;
+      return '<div class="link-div">' +
+        '<div><b>' + escapar(c.nome) + '</b>' +
+          '<span class="muted small">' + escapar(c.onde) + '</span></div>' +
+        '<code>' + escapar(url) + '</code>' +
+        '<button class="btn ghost sm" type="button" data-copiar="' + escapar(url) + '">Copiar</button>' +
+      '</div>';
+    }).join('');
+
+    $$('[data-copiar]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var texto = b.getAttribute('data-copiar');
+        var antes = b.textContent;
+        var pronto = function () { b.textContent = 'Copiado'; setTimeout(function () { b.textContent = antes; }, 1600); };
+        if (navigator.clipboard) navigator.clipboard.writeText(texto).then(pronto, function () { b.textContent = 'Copie à mão'; });
+        else b.textContent = 'Copie à mão';
+      });
+    });
   }
 
   /* ---------------------------------------------------- indicadores */
@@ -181,16 +214,15 @@
     return Math.floor(h / 24) + 'd' + (h % 24 ? ' ' + (h % 24) + 'h' : '');
   }
 
-  var DIA_LONGO = {
-    seg: 'Segunda', ter: 'Terça', qua: 'Quarta', qui: 'Quinta',
-    sex: 'Sexta', sab: 'Sábado', dom: 'Domingo',
-  };
+  // indexado por número: é assim que a contagem guarda o dia (0 = domingo),
+  // e um mapa por sigla fazia a tela mostrar "4" no lugar de "Quinta"
+  var DIA_LONGO = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
   /** O que os pacientes escolhem e de onde vieram. */
   function quadros(m) {
     var e = m.escolhas || {};
     var partes = [
-      quadro('Dias mais procurados', e.diaSemana, function (c) { return DIA_LONGO[c] || c; }),
+      quadro('Dias mais procurados', e.diaSemana, function (c) { return DIA_LONGO[Number(c)] || c; }),
       quadro('Horários mais procurados', e.hora, function (c) { return c + 'h'; }),
       quadro('Tipo de consulta', e.tipo),
       quadro('De onde vieram', m.origens),

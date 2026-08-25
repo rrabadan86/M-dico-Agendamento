@@ -339,3 +339,35 @@ test('o sal não vira uma coluna do gráfico', () => {
   assert.equal(dias.length, 3);
   assert.equal(total.visitas, 1);
 });
+
+test('os canais divulgados chegam ao painel com nome de gente', () => {
+  const comRotulo = (rotulo, ip) => ({
+    headers: { 'user-agent': 'Chrome/' + ip, 'x-forwarded-for': ip },
+    socket: { remoteAddress: ip }, query: { de: rotulo },
+  });
+  metricas.registrarVisita(comRotulo('whatsapp', '1.1.1.1'), DIA);
+  metricas.registrarVisita(comRotulo('indicacao', '2.2.2.2'), DIA);
+  metricas.registrarVisita(comRotulo('INDICAÇÃO', '3.3.3.3'), DIA);   // acento e maiúscula
+  metricas.registrarVisita(comRotulo('propaganda', '4.4.4.4'), DIA);
+
+  const origens = {};
+  metricas.resumo(1, DIA).origens.forEach((o) => { origens[o.chave] = o.n; });
+  assert.equal(origens.WhatsApp, 1);
+  assert.equal(origens['Indicação'], 2, 'as duas grafias contam no mesmo canal');
+  assert.equal(origens.Propaganda, 1);
+});
+
+test('rótulo fora da lista continua valendo, como foi escrito', () => {
+  metricas.registrarVisita({
+    headers: { 'user-agent': 'Chrome/x', 'x-forwarded-for': '9.9.9.9' },
+    socket: {}, query: { de: 'feira-de-saude' },
+  }, DIA);
+  const origens = metricas.resumo(1, DIA).origens.map((o) => o.chave);
+  assert.ok(origens.includes('feira-de-saude'));
+});
+
+test('sem rótulo e sem procedência, a visita é "Direto ou app"', () => {
+  metricas.registrarVisita(visitante('5.5.5.5'), DIA);
+  const origens = metricas.resumo(1, DIA).origens.map((o) => o.chave);
+  assert.ok(origens.includes('Direto ou app'));
+});

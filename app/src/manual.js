@@ -181,6 +181,9 @@ ${bloco('painel', 'O painel do médico', `
     <dt>Indicadores</dt>
     <dd>Quantas pessoas entraram e quantas agendaram. Detalhado
       <a href="#indicadores">mais abaixo</a>.</dd>
+    <dt>Divulgação</dt>
+    <dd>Os links marcados de cada canal, prontos para copiar. É o que permite ao painel
+      dizer se o paciente veio do WhatsApp, de uma indicação ou de um anúncio.</dd>
     <dt>Locais de atendimento</dt>
     <dd>Adicionar, editar, desligar ou excluir um local. Cada local tem a sua agenda do
       Google, os dias e horários em que o médico atende ali, a duração da consulta,
@@ -296,17 +299,28 @@ ${bloco('indicadores', 'Os indicadores', `
     <strong>não informa</strong> a procedência quando o link é aberto de dentro do
     WhatsApp ou do Instagram — os dois abrem o site num navegador interno. Sem ajuda,
     esses dois canais cairiam todos em "direto".</p>
-  <p>Para separá-los, acrescente um rótulo ao final do endereço ao divulgar:</p>
+  <p>Para separá-los, use um link diferente em cada lugar onde divulga. Os links
+    prontos ficam no painel, em <strong>Divulgação</strong>, com botão de copiar —
+    não precisa digitar nada:</p>
   <table class="tabela-manual">
-    <thead><tr><th>Onde você vai colar o link</th><th>Endereço a usar</th></tr></thead>
+    <thead><tr><th>Canal</th><th>Onde usar</th><th>Endereço</th></tr></thead>
     <tbody>
-      <tr><td>Bio do Instagram</td><td><code>${esc(url || '')}/?de=instagram</code></td></tr>
-      <tr><td>Mensagens de WhatsApp</td><td><code>${esc(url || '')}/?de=whatsapp</code></td></tr>
-      <tr><td>Cartão de visita, receituário</td><td><code>${esc(url || '')}/?de=cartao</code></td></tr>
+      <tr><td>WhatsApp</td><td>mensagens para pacientes</td>
+        <td><code>${esc(url || '')}/?de=whatsapp</code></td></tr>
+      <tr><td>Indicação</td><td>colegas que encaminham</td>
+        <td><code>${esc(url || '')}/?de=indicacao</code></td></tr>
+      <tr><td>Propaganda</td><td>anúncio pago, panfleto, outdoor</td>
+        <td><code>${esc(url || '')}/?de=propaganda</code></td></tr>
+      <tr><td>Instagram</td><td>link da bio</td>
+        <td><code>${esc(url || '')}/?de=instagram</code></td></tr>
     </tbody>
   </table>
-  <p>O paciente não nota diferença nenhuma — abre a mesma página. Pode inventar os
-    rótulos que quiser; eles aparecem no painel com o nome que você escreveu.</p>
+  <p>O paciente não nota diferença nenhuma — abre a mesma página. Se quiser separar
+    mais de perto, invente o rótulo que precisar: <code>?de=congresso</code>,
+    <code>?de=radio</code>. Ele aparece no painel com o nome que você escreveu.</p>
+  <p class="nota">Só funciona se o link divulgado for o marcado. Um paciente que chegue
+    pelo endereço sem rótulo entra como "Direto ou app" — então vale trocar os links já
+    publicados, não só os novos.</p>
 
   <h3>Como ler o gráfico</h3>
   <p>Uma coluna por dia: a parte clara é quanta gente entrou, a escura é quantos

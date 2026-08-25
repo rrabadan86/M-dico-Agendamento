@@ -79,9 +79,27 @@ const SITES = [
   [/doctoralia|boaconsulta/, 'Diretórios médicos'],
 ];
 
+/**
+ * Os canais que o consultório divulga, com o nome que aparece no painel.
+ *
+ * O rótulo do link é escrito sem acento e em minúscula, porque vai na barra
+ * de endereço; a tela mostra o nome de gente. Rótulo fora desta lista
+ * continua valendo — entra no painel como foi escrito.
+ */
+const CANAIS = {
+  whatsapp: 'WhatsApp',
+  indicacao: 'Indicação',
+  propaganda: 'Propaganda',
+  instagram: 'Instagram',
+  cartao: 'Cartão de visita',
+};
+
 function origemDe(req) {
   const rotulo = String((req.query && req.query.de) || '').trim().slice(0, 24);
-  if (rotulo) return rotulo.replace(/[^\p{L}\p{N} .-]/gu, '') || 'Marcado';
+  if (rotulo) {
+    const chave = rotulo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return CANAIS[chave] || rotulo.replace(/[^\p{L}\p{N} .-]/gu, '') || 'Marcado';
+  }
 
   const bruto = req.headers.referer || req.headers.referrer || '';
   if (!bruto) return 'Direto ou app';
@@ -399,7 +417,7 @@ function _limpar() {
 }
 
 module.exports = {
-  ARQUIVO, registrarVisita, registrarInteresse, registrarAgendamento,
+  ARQUIVO, CANAIS, registrarVisita, registrarInteresse, registrarAgendamento,
   registrarConfirmacao, registrarLiberacao, resumo,
   descarregar, _limpar, _gravarAgora: gravar,
 };
