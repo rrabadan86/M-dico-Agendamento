@@ -59,7 +59,7 @@ test('o funil separa quem entrou, quem olhou horários e quem agendou', () => {
   metricas.registrarInteresse(ana, DIA);
   metricas.registrarInteresse(ana, DIA);          // clicou em vários dias
   metricas.registrarInteresse(bia, DIA);
-  metricas.registrarAgendamento('h1', DIA);
+  metricas.registrarAgendamento('h1', {}, DIA);
 
   const { hoje } = metricas.resumo(1, DIA);
   assert.equal(hoje.unicos, 3);
@@ -73,7 +73,7 @@ test('conversão é sobre visitantes, não sobre visitas', () => {
   metricas.registrarVisita(ana, DIA);
   metricas.registrarVisita(ana, DIA);
   metricas.registrarVisita(visitante('2.2.2.2', 'Chrome/bia'), DIA);
-  metricas.registrarAgendamento('h1', DIA);
+  metricas.registrarAgendamento('h1', {}, DIA);
 
   const { hoje } = metricas.resumo(1, DIA);
   assert.equal(hoje.visitas, 4);
@@ -82,9 +82,9 @@ test('conversão é sobre visitantes, não sobre visitas', () => {
 });
 
 test('agendamentos são separados por local', () => {
-  metricas.registrarAgendamento('h1', DIA);
-  metricas.registrarAgendamento('h2', DIA);
-  metricas.registrarAgendamento('h1', DIA);
+  metricas.registrarAgendamento('h1', {}, DIA);
+  metricas.registrarAgendamento('h2', {}, DIA);
+  metricas.registrarAgendamento('h1', {}, DIA);
   assert.deepEqual(metricas.resumo(1, DIA).dias[0].porLocal, { h1: 2, h2: 1 });
 });
 
@@ -110,7 +110,7 @@ test('cada dia tem a sua própria conta de visitantes', () => {
 
 test('o que foi contado sobrevive ao reinício do servidor', () => {
   metricas.registrarVisita(visitante('1.1.1.1'), DIA);
-  metricas.registrarAgendamento('h1', DIA);
+  metricas.registrarAgendamento('h1', {}, DIA);
   metricas._gravarAgora();
 
   metricas._limpar();                              // como se o processo tivesse caído
@@ -294,4 +294,48 @@ test('confirmação sem hora de criação não estraga a média', () => {
   const { hoje } = metricas.resumo(1, DIA);
   assert.equal(hoje.confirmados, 2, 'conta como confirmada');
   assert.equal(hoje.esperaMedia, 20, 'mas fica fora da média');
+});
+
+test('reiniciar o servidor não transforma a mesma pessoa em duas', () => {
+  // 21 reinícios num dia de implantação viraram 3 pessoas em 29: o sal vivia
+  // só na memória e cada reinício recomeçava a identificação do zero
+  const ana = visitante('1.1.1.1', 'Chrome/ana');
+  metricas.registrarVisita(ana, DIA);
+  metricas._gravarAgora();
+
+  metricas._limpar();                    // exatamente o que o pm2 restart faz
+  metricas.registrarVisita(ana, DIA);
+  metricas._gravarAgora();
+
+  metricas._limpar();
+  metricas.registrarVisita(ana, DIA);
+
+  const { hoje } = metricas.resumo(1, DIA);
+  assert.equal(hoje.visitas, 3);
+  assert.equal(hoje.unicos, 1, 'três reinícios, uma pessoa só');
+});
+
+test('a virada do dia sobrescreve o sal, e ontem fica irreversível', () => {
+  const ontem = new Date('2026-08-23T15:00:00Z');
+  metricas.registrarVisita(visitante('1.1.1.1'), ontem);
+  metricas._gravarAgora();
+  const salDeOntem = JSON.parse(fs.readFileSync(arquivo, 'utf8')).sal;
+  assert.equal(salDeOntem.dia, '2026-08-23');
+
+  metricas.registrarVisita(visitante('1.1.1.1'), DIA);
+  metricas._gravarAgora();
+  const guardado = JSON.parse(fs.readFileSync(arquivo, 'utf8'));
+
+  assert.equal(guardado.sal.dia, '2026-08-24', 'só existe o sal do dia corrente');
+  assert.notEqual(guardado.sal.valor, salDeOntem.valor);
+  // as duas visitas contam separado: cada dia tem a sua própria identificação
+  assert.equal(guardado['2026-08-23'].unicos, 1);
+  assert.equal(guardado['2026-08-24'].unicos, 1);
+});
+
+test('o sal não vira uma coluna do gráfico', () => {
+  metricas.registrarVisita(visitante('1.1.1.1'), DIA);
+  const { dias, total } = metricas.resumo(3, DIA);
+  assert.equal(dias.length, 3);
+  assert.equal(total.visitas, 1);
 });

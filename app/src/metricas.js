@@ -13,8 +13,9 @@
  * O que fica gravado é um número por dia, nunca uma linha por pessoa. Para
  * separar "visitas" de "visitantes" é preciso reconhecer quem repete, e para
  * isso guarda-se um hash curto de IP + navegador — com um sal que muda todo
- * dia, e nunca o IP em si. Na virada do dia o sal antigo some e os hashes de
- * ontem viram números sem volta: dá para contar, não dá para seguir alguém.
+ * dia, e nunca o IP em si. Na virada do dia o sal antigo é sobrescrito e os
+ * hashes de ontem viram números sem volta: dá para contar, não dá para
+ * seguir alguém.
  */
 const fs = require('fs');
 const path = require('path');
@@ -100,7 +101,6 @@ function origemDe(req) {
 const somar1 = (mapa, chave) => { mapa[chave] = (mapa[chave] || 0) + 1; };
 
 let cache = null;
-let salDoDia = { dia: null, valor: null };
 
 /** As chaves que são dias; `desde` e afins ficam de fora. */
 const ehDia = (k) => /^\d{4}-\d{2}-\d{2}$/.test(k);
@@ -181,20 +181,31 @@ function podar(dados) {
 /**
  * Identificador de um visitante, válido só hoje.
  *
- * O sal é sorteado uma vez por dia e vive na memória. Quem reiniciar o
- * servidor no meio do dia recomeça o sal — os visitantes já contados podem
- * ser contados de novo. É um erro para cima, pequeno, e o preço de não
- * guardar nada que identifique alguém.
+ * O sal é sorteado uma vez por dia e fica gravado junto com os números. Já
+ * viveu só na memória, e isso quebrava a conta: cada reinício do servidor
+ * sorteava um sal novo, a mesma pessoa passava a gerar outro hash e entrava
+ * como visitante novo. Num dia de implantação, com vinte e um reinícios, três
+ * pessoas viraram vinte e nove.
+ *
+ * Só existe um sal por vez, e o do dia anterior é sobrescrito na virada. É o
+ * que mantém a propriedade que importa: passado o dia, os hashes não têm mais
+ * como ser ligados a ninguém — não sobra o segredo que os gerou.
  */
-function digital(req, dia) {
-  if (salDoDia.dia !== dia) {
-    salDoDia = { dia, valor: crypto.randomBytes(16).toString('hex') };
+function salDe(dia) {
+  const dados = ler();
+  if (!dados.sal || dados.sal.dia !== dia) {
+    dados.sal = { dia, valor: crypto.randomBytes(16).toString('hex') };
+    agendarGravacao();
   }
+  return dados.sal.valor;
+}
+
+function digital(req, dia) {
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
     || (req.socket && req.socket.remoteAddress) || '';
   const navegador = req.headers['user-agent'] || '';
   return crypto.createHash('sha256')
-    .update(`${salDoDia.valor}|${ip}|${navegador}`)
+    .update(`${salDe(dia)}|${ip}|${navegador}`)
     .digest('hex')
     .slice(0, 12);
 }
@@ -384,7 +395,6 @@ for (const sinal of ['SIGINT', 'SIGTERM', 'beforeExit']) process.on(sinal, desca
 /** Só para teste: esquece o que está em memória. */
 function _limpar() {
   cache = null;
-  salDoDia = { dia: null, valor: null };
   if (pendente) { clearTimeout(pendente); pendente = null; }
 }
 
