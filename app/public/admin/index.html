@@ -59,11 +59,14 @@
           <p class="muted small">Contagem feita aqui mesmo, sem cookie e sem enviar nada
             para fora. Robôs e prévias de link do WhatsApp não entram na conta.</p>
         </div>
-        <select id="metricasPeriodo" class="periodo" aria-label="Período">
-          <option value="7">7 dias</option>
-          <option value="30" selected>30 dias</option>
-          <option value="90">90 dias</option>
-        </select>
+        <div class="metricas-acoes">
+          <select id="metricasPeriodo" class="periodo" aria-label="Período">
+            <option value="7">7 dias</option>
+            <option value="30" selected>30 dias</option>
+            <option value="90">90 dias</option>
+          </select>
+          <button class="btn ghost sm" type="button" id="zerarMetricas">Zerar</button>
+        </div>
       </div>
       <div id="metricas"><p class="carregando">Carregando…</p></div>
     </section>

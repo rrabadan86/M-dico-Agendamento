@@ -371,3 +371,50 @@ test('sem rótulo e sem procedência, a visita é "Direto ou app"', () => {
   const origens = metricas.resumo(1, DIA).origens.map((o) => o.chave);
   assert.ok(origens.includes('Direto ou app'));
 });
+
+test('zerar apaga a contagem e guarda uma cópia antes', () => {
+  metricas.registrarVisita(visitante('1.1.1.1'), DIA);
+  metricas.registrarAgendamento('h1', {}, DIA);
+  metricas._gravarAgora();
+
+  const { copia } = metricas.zerar(DIA);
+  assert.ok(copia, 'devolve o caminho da cópia');
+  assert.ok(fs.existsSync(copia), 'a cópia existe no disco');
+
+  const guardado = JSON.parse(fs.readFileSync(copia, 'utf8'));
+  assert.equal(guardado['2026-08-24'].visitas, 1, 'a cópia tem o que havia antes');
+
+  const depois = metricas.resumo(1, DIA);
+  assert.equal(depois.hoje.visitas, 0);
+  assert.equal(depois.hoje.agendamentos, 0);
+  assert.equal(depois.desde, null, 'a medição recomeça sem marco');
+
+  fs.unlinkSync(copia);
+});
+
+test('zerar sobrevive ao reinício: não é só memória', () => {
+  metricas.registrarVisita(visitante('1.1.1.1'), DIA);
+  metricas._gravarAgora();
+  const { copia } = metricas.zerar(DIA);
+
+  metricas._limpar();                              // como se o pm2 reiniciasse
+  assert.equal(metricas.resumo(1, DIA).hoje.visitas, 0);
+  if (copia) fs.unlinkSync(copia);
+});
+
+test('zerar com o arquivo já vazio não inventa cópia', () => {
+  const { copia } = metricas.zerar(DIA);
+  assert.equal(copia, null);
+});
+
+test('depois de zerar, a contagem recomeça normalmente', () => {
+  metricas.registrarVisita(visitante('1.1.1.1'), DIA);
+  metricas._gravarAgora();
+  const { copia } = metricas.zerar(DIA);
+
+  metricas.registrarVisita(visitante('2.2.2.2'), DIA);
+  const r = metricas.resumo(1, DIA);
+  assert.equal(r.hoje.visitas, 1);
+  assert.equal(r.desde, '2026-08-24', 'o marco nasce de novo na primeira visita');
+  if (copia) fs.unlinkSync(copia);
+});

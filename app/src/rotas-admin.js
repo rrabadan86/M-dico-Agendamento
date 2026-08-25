@@ -180,6 +180,15 @@ function limparFotosAntigas(manter) {
 
 const metricas = require('./metricas');
 
+/**
+ * Recomeça a contagem do zero. Guarda uma cópia antes — ver metricas.zerar.
+ * DELETE, e não POST: é o método que diz o que a rota faz.
+ */
+router.delete('/metricas', (req, res) => {
+  const { copia } = metricas.zerar();
+  res.json({ ok: true, copia: copia ? require('path').basename(copia) : null });
+});
+
 router.get('/metricas', (req, res) => {
   const dias = Math.min(Math.max(Number(req.query.dias) || 30, 1), 180);
   const r = metricas.resumo(dias);

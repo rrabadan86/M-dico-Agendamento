@@ -815,6 +815,27 @@
   $('#novoLocal').addEventListener('click', function () { abrirGaveta(null); });
   $('#metricasPeriodo').addEventListener('change', verMetricas);
 
+  $('#zerarMetricas').addEventListener('click', async function () {
+    var botao = $('#zerarMetricas');
+    // apagar histórico não pode acontecer por um clique distraído
+    if (!window.confirm(
+      'Apagar toda a contagem de visitas e agendamentos?\n\n'
+      + 'Uma cópia fica guardada no servidor, mas o painel recomeça do zero.\n'
+      + 'As consultas na agenda do Google não são afetadas.'
+    )) return;
+
+    botao.disabled = true; botao.textContent = 'Zerando…';
+    try {
+      await api('/metricas', { method: 'DELETE' });
+      await verMetricas();
+      botao.textContent = 'Zerado';
+      setTimeout(function () { botao.textContent = 'Zerar'; botao.disabled = false; }, 1800);
+    } catch (e) {
+      botao.textContent = 'Zerar'; botao.disabled = false;
+      window.alert('Não consegui zerar: ' + e.message);
+    }
+  });
+
   function lerFormLocal() {
     return {
       nome: $('#l-nome').value,

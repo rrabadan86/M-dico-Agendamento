@@ -432,3 +432,17 @@ test('prévia de link do WhatsApp não conta como visita', async () => {
   const depois = (await nav('/admin/api/metricas?dias=1')).corpo.hoje.visitas;
   assert.equal(depois, antes, 'o robô do WhatsApp não pode inflar o número');
 });
+
+test('zerar indicadores exige sessão e responde', async () => {
+  const semSessao = navegador();
+  assert.equal((await semSessao('/admin/api/metricas', { method: 'DELETE' })).status, 401,
+    'apagar histórico não pode ficar aberto');
+
+  const nav = await entrar(navegador());
+  const r = await nav('/admin/api/metricas', { method: 'DELETE' });
+  assert.equal(r.status, 200);
+  assert.equal(r.corpo.ok, true);
+
+  const depois = await nav('/admin/api/metricas?dias=7');
+  assert.equal(depois.corpo.total.visitas, 0);
+});

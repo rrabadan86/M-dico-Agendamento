@@ -454,3 +454,4 @@
 .dica-vazio{ color:var(--ink-3); }
 .barra{ cursor:default; }
 .barra:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+.metricas-acoes{ display:flex; gap:8px; align-items:center; }

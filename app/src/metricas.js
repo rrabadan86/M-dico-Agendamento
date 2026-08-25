@@ -410,6 +410,46 @@ function descarregar() {
 }
 for (const sinal of ['SIGINT', 'SIGTERM', 'beforeExit']) process.on(sinal, descarregar);
 
+/**
+ * Zera a contagem, guardando uma cópia antes.
+ *
+ * Existe porque nos primeiros dias os números ficam contaminados por teste e
+ * por defeito recém-corrigido, e recomeçar limpo é mais honesto do que ler um
+ * histórico que ninguém confia. A cópia fica ao lado do arquivo: apagar por
+ * engano o trabalho de meses não pode custar um clique.
+ */
+function zerar(agora = new Date()) {
+  const anterior = ler();
+  let copia = null;
+  if (diasNoArquivo(anterior).length) {
+    try {
+      copia = `${ARQUIVO}.${agora.toISOString().slice(0, 19).replace(/[:T-]/g, '')}.bak`;
+      fs.writeFileSync(copia, JSON.stringify(anterior), 'utf8');
+      podarCopias();
+    } catch (e) {
+      console.error('[metricas] não consegui guardar a cópia:', e.message);
+      copia = null;
+    }
+  }
+
+  cache = {};
+  if (pendente) { clearTimeout(pendente); pendente = null; }
+  gravar();
+  return { copia };
+}
+
+/** Mantém só as cinco cópias mais recentes; o resto é entulho. */
+function podarCopias() {
+  const pasta = path.dirname(ARQUIVO);
+  const base = `${path.basename(ARQUIVO)}.`;
+  const copias = fs.readdirSync(pasta)
+    .filter((f) => f.startsWith(base) && f.endsWith('.bak'))
+    .sort();
+  while (copias.length > 5) {
+    try { fs.unlinkSync(path.join(pasta, copias.shift())); } catch { /* já foi */ }
+  }
+}
+
 /** Só para teste: esquece o que está em memória. */
 function _limpar() {
   cache = null;
@@ -419,5 +459,5 @@ function _limpar() {
 module.exports = {
   ARQUIVO, CANAIS, registrarVisita, registrarInteresse, registrarAgendamento,
   registrarConfirmacao, registrarLiberacao, resumo,
-  descarregar, _limpar, _gravarAgora: gravar,
+  zerar, descarregar, _limpar, _gravarAgora: gravar,
 };
