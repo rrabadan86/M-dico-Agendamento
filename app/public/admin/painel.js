@@ -672,6 +672,8 @@
     $('#l-end').value = h ? (h.endereco || '') : '';
     $('#l-tel').value = h ? (h.telefone || '') : '';
     $('#l-zap').value = h ? (h.whatsappRecepcao || '') : '';
+    $('#resultadoZap').textContent = '';
+    $('#resultadoZap').removeAttribute('data-estado');
 
     montarFaixas();
     marcarCampos({});
@@ -784,6 +786,33 @@
       alvo.textContent = e.message;
     } finally {
       $('#testar').disabled = false;
+    }
+  });
+
+  $('#testarZap').addEventListener('click', async function () {
+    var alvo = $('#resultadoZap');
+    var numero = $('#l-zap').value.trim();
+    if (!numero) {
+      alvo.setAttribute('data-estado', 'erro');
+      alvo.textContent = 'Digite o número primeiro.';
+      return;
+    }
+    alvo.setAttribute('data-estado', 'testando');
+    alvo.textContent = 'Consultando o WhatsApp…';
+    $('#testarZap').disabled = true;
+    try {
+      var r = await api('/whatsapp/verificar-numero', {
+        method: 'POST', body: JSON.stringify({ numero: numero }),
+      });
+      // "não confirmado" não é o mesmo que "não existe": o envio segue sendo
+      // tentado. Por isso o aviso é amarelo, não vermelho.
+      alvo.setAttribute('data-estado', r.ok ? 'ok' : (r.motivo === 'nao_confirmado' ? 'aviso' : 'erro'));
+      alvo.textContent = (r.ok ? '✓ ' : '') + r.mensagem;
+    } catch (e) {
+      alvo.setAttribute('data-estado', 'erro');
+      alvo.textContent = e.message;
+    } finally {
+      $('#testarZap').disabled = false;
     }
   });
 

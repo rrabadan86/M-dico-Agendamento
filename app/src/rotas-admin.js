@@ -240,6 +240,24 @@ router.post('/avisos-pendentes/reenviar', async (req, res) => {
 });
 
 /**
+ * Confere se uma linha responde no WhatsApp, sem enviar nada.
+ *
+ * O equivalente ao "Testar acesso" da agenda: pega dígito trocado na hora de
+ * cadastrar, e não quando um paciente já agendou e a mensagem não chegou.
+ */
+router.post('/whatsapp/verificar-numero', async (req, res) => {
+  if (!wa.verificar) {
+    return res.json({ ok: false, motivo: 'indisponivel',
+      mensagem: 'Este driver de WhatsApp não sabe testar números.' });
+  }
+  try {
+    res.json(await wa.verificar((req.body && req.body.numero) || ''));
+  } catch (e) {
+    res.status(502).json({ ok: false, motivo: 'erro', mensagem: e.message });
+  }
+});
+
+/**
  * Mensagem de teste para a recepção de um local, para provar que o caminho
  * funciona. Sem local informado, usa o primeiro que estiver no ar.
  */

@@ -262,13 +262,66 @@ async function enderecoDe(numero) {
     if (achado) break;
   }
 
+  // A consulta não achou. Isso NÃO prova que o número não existe: o
+  // `getNumberId` conversa com o servidor do WhatsApp e devolve nulo também
+  // quando a sessão ainda está sincronizando, quando o contato não está na
+  // agenda do aparelho, ou por mudança de protocolo do lado deles.
+  //
+  // Recusar o envio por causa disso é pior do que tentar: a consulta é para
+  // acertar o endereço, não para autorizar. Sem ela, monta-se o endereço
+  // padrão e deixa-se o próprio envio dizer se falha.
   if (!achado) {
-    throw new Error(
-      `O número ${digitos} não foi encontrado no WhatsApp. Confira se está certo, ` +
-      'com 55 + DDD + número, e se essa linha realmente tem WhatsApp.'
-    );
+    console.warn(`[wa] ${digitos} não apareceu na consulta; enviando mesmo assim`);
+    return `${digitos}@c.us`;
   }
   return achado._serialized;
+}
+
+/**
+ * Diz se uma linha responde no WhatsApp, sem enviar nada.
+ *
+ * Serve ao botão "Testar número" do painel: descobrir dígito trocado na hora
+ * de cadastrar, e não quando um paciente já agendou e a mensagem não chegou.
+ */
+async function verificar(numero) {
+  const digitos = String(numero).replace(/\D/g, '');
+  if (!digitos) return { ok: false, motivo: 'vazio', mensagem: 'Informe um número.' };
+  if (!/^\d{10,15}$/.test(digitos)) {
+    return { ok: false, motivo: 'formato',
+      mensagem: 'Use 55 + DDD + número, só dígitos. Ex.: 5562991234567' };
+  }
+  if (!cliente) {
+    return { ok: false, motivo: 'desconectado',
+      mensagem: 'Conecte o WhatsApp antes de testar um número.' };
+  }
+
+  if (mesmoTelefone(digitos, numeroConectado())) {
+    return { ok: true, mensagem: 'É o próprio número conectado. As mensagens vão para ele.' };
+  }
+
+  for (const tentativa of variantes(digitos)) {
+    let achado = null;
+    try {
+      achado = await cliente.getNumberId(tentativa);
+    } catch (e) {
+      return { ok: false, motivo: 'erro',
+        mensagem: `Não consegui consultar agora: ${e.message}` };
+    }
+    if (achado) {
+      const igual = tentativa === digitos;
+      return { ok: true, encontrado: tentativa,
+        mensagem: igual
+          ? 'Número confirmado no WhatsApp.'
+          : `Confirmado, mas o WhatsApp registra como ${tentativa}. Vamos usar esse.` };
+    }
+  }
+
+  // Mesmo aqui não afirmamos que o número não existe — só que não deu para
+  // confirmar. O envio continua sendo tentado quando chegar um agendamento.
+  return { ok: false, motivo: 'nao_confirmado',
+    mensagem: 'Não consegui confirmar este número. Pode ser dígito trocado, linha sem '
+      + 'WhatsApp, ou a consulta do WhatsApp falhando. O sistema vai tentar enviar '
+      + 'assim mesmo — teste com uma mensagem de verdade para ter certeza.' };
 }
 
 async function enviar(numero, texto) {
@@ -283,7 +336,7 @@ async function enviar(numero, texto) {
 
 module.exports = {
   nome: 'wwebjs',
-  iniciar, enviar, conectar, desconectar, qrImagem, enderecoDe,
+  iniciar, enviar, conectar, desconectar, qrImagem, enderecoDe, verificar,
   /** só para teste: troca o cliente do WhatsApp por um de mentira */
   _usarCliente(falso) { cliente = falso; anotar('conectado'); },
   estado: estadoAtual,

@@ -136,6 +136,9 @@
 .resultado[data-estado="ok"]{ color:var(--ok); }
 .resultado[data-estado="erro"]{ color:var(--accent); }
 .resultado[data-estado="testando"]{ color:var(--ink-3); }
+/* "não consegui confirmar" não é "não existe": o envio segue sendo tentado.
+   Vermelho aqui faria o médico apagar um número que talvez esteja certo. */
+.resultado[data-estado="aviso"]{ color:var(--warn); }
 
 /* ---- prévia da grade ---- */
 .previa{ font-size:.85rem; color:var(--ink-2); }

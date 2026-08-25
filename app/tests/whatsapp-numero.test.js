@@ -40,11 +40,14 @@ test('linha antiga sem o nono dígito é encontrada na segunda tentativa', async
   assert.deepEqual(consultados, ['5562981718205', '556281718205']);
 });
 
-test('número sem WhatsApp explica o problema em vez de falhar seco', async () => {
-  await assert.rejects(
-    () => driver.enderecoDe('5562900000000'),
-    (e) => /não foi encontrado no WhatsApp/.test(e.message) && /55 \+ DDD/.test(e.message)
-  );
+test('quem explica o número duvidoso é o verificar, não o envio', async () => {
+  // enderecoDe não recusa mais: a consulta serve para acertar o endereço, não
+  // para autorizar. Quem dá o veredito legível é o botão "Testar número".
+  assert.equal(await driver.enderecoDe('5562900000000'), '5562900000000@c.us');
+
+  const r = await driver.verificar('5562900000000');
+  assert.equal(r.ok, false);
+  assert.match(r.mensagem, /dígito trocado|sem WhatsApp/);
 });
 
 test('número vazio nem consulta o WhatsApp', async () => {
@@ -93,4 +96,47 @@ test('número cadastrado sem o código do país é encontrado assim mesmo', asyn
   registrados.add('5562981718205');
   assert.equal(await driver.enderecoDe('(62) 98171-8205'), '5562981718205@c.us');
   assert.deepEqual(consultados, ['62981718205', '5562981718205']);
+});
+
+test('número que a consulta não acha ainda é tentado no envio', async () => {
+  // getNumberId devolve nulo também quando a sessão está sincronizando ou o
+  // contato não está na agenda. Recusar o envio por isso é pior que tentar:
+  // foi o que segurou um agendamento real de chegar à recepção.
+  const endereco = await driver.enderecoDe('5527992224359');
+  assert.equal(endereco, '5527992224359@c.us');
+  assert.deepEqual(consultados, ['5527992224359', '552792224359']);
+});
+
+test('verificar confirma um número registrado', async () => {
+  clienteFalso.info = { wid: { user: '5562981718205', _serialized: '5562981718205@c.us' } };
+  registrados.add('5562999998888');
+  const r = await driver.verificar('5562999998888');
+  assert.equal(r.ok, true);
+  assert.match(r.mensagem, /confirmado/i);
+  clienteFalso.info = null;
+});
+
+test('verificar avisa sem afirmar que o número não existe', async () => {
+  clienteFalso.info = { wid: { user: '5562981718205', _serialized: '5562981718205@c.us' } };
+  const r = await driver.verificar('5527992224359');
+  assert.equal(r.ok, false);
+  assert.equal(r.motivo, 'nao_confirmado');
+  assert.match(r.mensagem, /tentar enviar/, 'diz que o envio continua acontecendo');
+  assert.ok(!/não existe/.test(r.mensagem));
+  clienteFalso.info = null;
+});
+
+test('verificar recusa formato impossível sem consultar', async () => {
+  const r = await driver.verificar('123');
+  assert.equal(r.ok, false);
+  assert.equal(r.motivo, 'formato');
+  assert.deepEqual(consultados, []);
+});
+
+test('verificar reconhece o próprio número da sessão', async () => {
+  clienteFalso.info = { wid: { user: '5562981718205', _serialized: '5562981718205@c.us' } };
+  const r = await driver.verificar('5562981718205');
+  assert.equal(r.ok, true);
+  assert.match(r.mensagem, /próprio número/);
+  clienteFalso.info = null;
 });
