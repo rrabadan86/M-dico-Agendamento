@@ -116,15 +116,36 @@
 
   function desenharLinks() {
     var base = location.origin + '/?de=';
+
+    // as contagens vêm do mesmo período escolhido nos indicadores
+    var porCanal = {};
+    var semRotulo = 0;
+    ((estado.metricas || {}).origens || []).forEach(function (o) {
+      if (o.chave === 'Direto ou app') semRotulo += o.n;
+      porCanal[o.chave] = (porCanal[o.chave] || 0) + o.n;
+    });
+    var medido = Boolean(estado.metricas);
+
     $('#linksDivulgacao').innerHTML = CANAIS_DIVULGACAO.map(function (c) {
       var url = base + c.rotulo;
-      return '<div class="link-div">' +
+      var n = porCanal[c.nome] || 0;
+      return '<div class="link-div"' + (n ? '' : ' data-zerado="true"') + '>' +
         '<div><b>' + escapar(c.nome) + '</b>' +
           '<span class="muted small">' + escapar(c.onde) + '</span></div>' +
         '<code>' + escapar(url) + '</code>' +
+        (medido ? '<div class="link-conta"><b>' + n + '</b><span>' +
+          (n === 1 ? 'pessoa' : 'pessoas') + '</span></div>' : '<div class="link-conta"></div>') +
         '<button class="btn ghost sm" type="button" data-copiar="' + escapar(url) + '">Copiar</button>' +
       '</div>';
-    }).join('');
+    }).join('') +
+    (medido && semRotulo
+      // sem esta linha os quatro zeros pareceriam "ninguém entrou", quando o
+      // que houve foi gente entrando por um link sem marcação
+      ? '<p class="muted small" style="margin:14px 0 0">Além desses, <b>' + semRotulo +
+        '</b> ' + (semRotulo === 1 ? 'pessoa chegou' : 'pessoas chegaram') +
+        ' por um endereço sem rótulo, e por isso entraram como "Direto ou app". ' +
+        'Trocar os links já publicados pelos de cima resolve.</p>'
+      : '');
 
     $$('[data-copiar]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -179,6 +200,8 @@
         : '') +
       funil(t) +
       quadros(m);
+
+    desenharLinks();          // os links mostram a contagem do mesmo período
   }
 
   /** Do pedido à confirmação, com o tempo que o paciente esperou. */

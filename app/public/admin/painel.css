@@ -422,3 +422,15 @@
   .link-div{ grid-template-columns:1fr; gap:8px; }
   .link-div button{ justify-self:start; }
 }
+.link-div{ grid-template-columns:minmax(140px,1fr) minmax(0,1.7fr) 64px auto; }
+.link-div[data-zerado="true"]{ opacity:.72; }
+.link-conta{ text-align:right; }
+.link-conta b{
+  display:block; font-family:"Fraunces",serif; font-size:1.2rem; line-height:1;
+}
+.link-conta span{ font-size:.72rem; color:var(--ink-3); }
+@media (max-width:760px){
+  .link-div{ grid-template-columns:1fr auto; }
+  .link-div code{ grid-column:1 / -1; }
+  .link-conta{ text-align:left; }
+}
